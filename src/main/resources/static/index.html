@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>한국자산관리공사 입찰 정보</title>
+    <style>
+        * { box-sizing: border-box; }
+        body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background-color: #f5f5f5; }
+        .header { background-color: #4CAF50; color: white; padding: 20px; text-align: center; margin-bottom: 20px; border-radius: 8px; }
+        .controls { background: white; padding: 20px; margin-bottom: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .controls input, .controls button { padding: 10px; margin: 5px; border: 1px solid #ddd; border-radius: 4px; }
+        .controls button { background-color: #4CAF50; color: white; cursor: pointer; }
+        .controls button:hover { background-color: #45a049; }
+        .quick-search { margin-bottom: 15px; }
+        .quick-search h4 { margin: 0 0 10px 0; color: #333; }
+        .quick-search button { padding: 8px 12px; margin: 2px; font-size: 14px; }
+        .loading { text-align: center; color: #666; padding: 20px; }
+        .error { color: red; background-color: #ffe6e6; padding: 15px; border-radius: 5px; margin: 10px 0; }
+        .success { color: green; background-color: #e6ffe6; padding: 15px; border-radius: 5px; margin: 10px 0; }
+        .bid-list { background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); overflow: hidden; }
+        .bid-item { padding: 15px; border-bottom: 1px solid #eee; cursor: pointer; }
+        .bid-item:hover { background-color: #f9f9f9; }
+        .bid-item:last-child { border-bottom: none; }
+        .bid-title { font-weight: bold; color: #333; margin-bottom: 5px; }
+        .bid-info { color: #666; font-size: 14px; }
+        .bid-price { color: #4CAF50; font-weight: bold; }
+        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); }
+        .modal-content { background-color: white; margin: 5% auto; padding: 20px; border-radius: 8px; width: 80%; max-width: 500px; }
+        .close { color: #aaa; float: right; font-size: 28px; font-weight: bold; cursor: pointer; }
+        .close:hover { color: black; }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 5px; font-weight: bold; }
+        .form-group input { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; }
+        .tabs { display: flex; background: white; border-radius: 8px 8px 0 0; overflow: hidden; margin-top: 20px; }
+        .tab { flex: 1; padding: 15px; text-align: center; cursor: pointer; background: #f0f0f0; border-right: 1px solid #ddd; }
+        .tab.active { background: #4CAF50; color: white; }
+        .tab:last-child { border-right: none; }
+        .tab-content { background: white; padding: 20px; border-radius: 0 0 8px 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>한국자산관리공사 입찰 정보 시스템</h1>
+    </div>
+    
+    <div style="display: flex; justify-content: space-between; align-items: center; background: white; padding: 10px 20px; border-radius: 8px; margin-bottom: 10px;">
+        <div class="tabs" style="margin: 0;">
+            <div class="tab active" onclick="showTab('list')">입찰 목록</div>
+            <div class="tab" onclick="showTab('mybids')">내 입찰 현황</div>
+        </div>
+        <div id="authSection">
+            <button onclick="showLoginModal()" style="padding: 8px 16px; margin: 0 5px; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer;">로그인</button>
+            <button onclick="showRegisterModal()" style="padding: 8px 16px; margin: 0 5px; background: #2196F3; color: white; border: none; border-radius: 4px; cursor: pointer;">회원가입</button>
+        </div>
+        <div id="userSection" style="display: none;">
+            <span id="welcomeMessage" style="margin-right: 10px;"></span>
+            <button onclick="logout()" style="padding: 8px 16px; background: #f44336; color: white; border: none; border-radius: 4px; cursor: pointer;">로그아웃</button>
+        </div>
+    </div>
+    
+    <div id="listTab" class="tab-content">
+        <div class="controls">
+            <div class="quick-search">
+                <h4>상세 검색</h4>
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 15px;">
+                    <div>
+                        <label>물건명:</label>
+                        <input type="text" id="cltrNm" placeholder="예: 아파트, 토지" style="width: 100%;">
+                    </div>
+                    <div>
+                        <label>시도:</label>
+                        <select id="sido" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px;">
+                            <option value="">전체</option>
+                            <option value="서울특별시">서울특별시</option>
+                            <option value="부산광역시">부산광역시</option>
+                            <option value="대구광역시">대구광역시</option>
+                            <option value="인천광역시">인천광역시</option>
+                            <option value="광주광역시">광주광역시</option>
+                            <option value="대전광역시">대전광역시</option>
+                            <option value="울산광역시">울산광역시</option>
+                            <option value="경기도">경기도</option>
+                            <option value="강원도">강원도</option>
+                            <option value="충청북도">충청북도</option>
+                            <option value="충청남도">충청남도</option>
+                            <option value="전라북도">전라북도</option>
+                            <option value="전라남도">전라남도</option>
+                            <option value="경상북도">경상북도</option>
+                            <option value="경상남도">경상남도</option>
+                            <option value="제주특별자치도">제주특별자치도</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label>처분방법:</label>
+                        <select id="dpslMtdCd" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px;">
+                            <option value="">전체</option>
+                            <option value="0001">매각</option>
+                            <option value="0002">임대</option>
+                        </select>
+                    </div>
+                </div>
+                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 15px;">
+                    <div>
+                        <label>시군구:</label>
+                        <input type="text" id="sgk" placeholder="예: 강남구, 해운대구" style="width: 100%;">
+                    </div>
+                    <div>
+                        <label>읍면동:</label>
+                        <input type="text" id="emd" placeholder="예: 역삼동, 우동" style="width: 100%;">
+                    </div>
+                </div>
+                <div style="text-align: center;">
+                    <button onclick="searchWithFilters()" style="padding: 12px 30px; font-size: 16px;">상세 검색</button>
+                    <button onclick="clearFilters()" style="padding: 12px 30px; font-size: 16px; background: #666;">초기화</button>
+                </div>
+            </div>
+            <div style="text-align: center; padding-top: 15px; border-top: 1px solid #eee;">
+                <label>페이지: <input type="number" id="pageNo" value="1" min="1" style="width: 80px;" onchange="loadCurrentPage()"></label>
+                <label>개수: <input type="number" id="numOfRows" value="10" min="1" max="100" style="width: 80px;" onchange="loadBids()"></label>
+                <button onclick="prevPage()">이전</button>
+                <button onclick="nextPage()">다음</button>
+                <button onclick="loadBids()" style="background: #666;">새로고침</button>
+            </div>
+        </div>
+        
+        <div id="loading" class="loading" style="display: none;">데이터를 불러오는 중...</div>
+        <div id="error" class="error" style="display: none;"></div>
+        <div id="bidList" class="bid-list"></div>
+    </div>
+    
+    <div id="mybidsTab" class="tab-content" style="display: none;">
+        <div id="myBidsList"></div>
+    </div>
+
+    <div id="bidModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeBidModal()">&times;</span>
+            <h2>입찰 신청</h2>
+            <div id="modalError" class="error" style="display: none;"></div>
+            <div id="modalSuccess" class="success" style="display: none;"></div>
+            <form id="bidForm">
+                <input type="hidden" id="modalPblancNo">
+                <div class="form-group">
+                    <label>공고명:</label>
+                    <div id="modalPblancNm" style="padding: 10px; background: #f9f9f9; border-radius: 4px;"></div>
+                </div>
+                <div class="form-group">
+                    <label>입찰자명:</label>
+                    <input type="text" id="bidderName" required>
+                </div>
+                <div class="form-group">
+                    <label>입찰금액 (원):</label>
+                    <input type="number" id="bidAmount" required>
+                </div>
+                <div class="form-group">
+                    <label>연락처:</label>
+                    <input type="tel" id="phoneNumber" required>
+                </div>
+                <div class="form-group">
+                    <label>이메일:</label>
+                    <input type="email" id="email" required>
+                </div>
+                <button type="submit" style="width: 100%; padding: 12px; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer;">입찰 신청</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- 로그인 모달 -->
+    <div id="loginModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeLoginModal()">&times;</span>
+            <h2>로그인</h2>
+            <div id="loginError" class="error" style="display: none;"></div>
+            <form id="loginForm">
+                <div class="form-group">
+                    <label>사용자명:</label>
+                    <input type="text" id="loginUsername" required>
+                </div>
+                <div class="form-group">
+                    <label>비밀번호:</label>
+                    <input type="password" id="loginPassword" required>
+                </div>
+                <button type="submit" style="width: 100%; padding: 12px; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer;">로그인</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- 회원가입 모달 -->
+    <div id="registerModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeRegisterModal()">&times;</span>
+            <h2>회원가입</h2>
+            <div id="registerError" class="error" style="display: none;"></div>
+            <div id="registerSuccess" class="success" style="display: none;"></div>
+            <form id="registerForm">
+                <div class="form-group">
+                    <label>사용자명:</label>
+                    <input type="text" id="registerUsername" required>
+                </div>
+                <div class="form-group">
+                    <label>비밀번호:</label>
+                    <input type="password" id="registerPassword" required>
+                </div>
+                <div class="form-group">
+                    <label>이메일:</label>
+                    <input type="email" id="registerEmail" required>
+                </div>
+                <div class="form-group">
+                    <label>전화번호:</label>
+                    <input type="tel" id="registerPhone">
+                </div>
+                <button type="submit" style="width: 100%; padding: 12px; background: #2196F3; color: white; border: none; border-radius: 4px; cursor: pointer;">회원가입</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        async function loadBids(useFilters = false) {
+            document.getElementById('pageNo').value = 1;
+            loadCurrentPage(useFilters);
+        }
+        
+        async function loadCurrentPage(useFilters = false) {
+            const loading = document.getElementById('loading');
+            const error = document.getElementById('error');
+            const bidList = document.getElementById('bidList');
+            
+            loading.style.display = 'block';
+            error.style.display = 'none';
+            bidList.innerHTML = '';
+            
+            try {
+                const pageNo = document.getElementById('pageNo').value;
+                const numOfRows = document.getElementById('numOfRows').value;
+                
+                let url = `/api/bids-from-db?pageNo=${pageNo}&numOfRows=${numOfRows}`;
+                
+                if (useFilters) {
+                    const cltrNm = document.getElementById('cltrNm').value;
+                    const sido = document.getElementById('sido').value;
+                    const sgk = document.getElementById('sgk').value;
+                    const emd = document.getElementById('emd').value;
+                    const dpslMtdCd = document.getElementById('dpslMtdCd').value;
+                    
+                    if (cltrNm) url += `&cltrNm=${encodeURIComponent(cltrNm)}`;
+                    if (sido) url += `&sido=${encodeURIComponent(sido)}`;
+                    if (sgk) url += `&sgk=${encodeURIComponent(sgk)}`;
+                    if (emd) url += `&emd=${encodeURIComponent(emd)}`;
+                    if (dpslMtdCd) url += `&dpslMtdCd=${dpslMtdCd}`;
+                }
+                
+                const response = await fetch(url);
+                const bidData = await response.json();
+                
+                if (!bidData || bidData.length === 0) {
+                    bidList.innerHTML = '<div style="text-align: center; padding: 40px; color: #666;">검색 결과가 없습니다.</div>';
+                } else {
+                    bidData.forEach(item => {
+                        const bidItem = createBidItemFromDB(item);
+                        bidList.appendChild(bidItem);
+                    });
+                }
+            } catch (err) {
+                error.textContent = '데이터를 불러오는 중 오류가 발생했습니다: ' + err.message;
+                error.style.display = 'block';
+            } finally {
+                loading.style.display = 'none';
+            }
+        }
+        
+        function createBidItemFromDB(item) {
+            const div = document.createElement('div');
+            div.className = 'bid-item';
+            
+            const cltrNm = item.cltrNm || '정보 없음';
+            const pbctNo = item.pbctNo || '';
+            const sido = item.sido || '';
+            const sgk = item.sgk || '';
+            const emd = item.emd || '';
+            const minBidPrc = item.minBidPrc || 0;
+            const apslAsesAvgAmt = item.apslAsesAvgAmt || 0;
+            const pbctBgnDt = item.pbctBgnDt || '';
+            const pbctEndDt = item.pbctEndDt || '';
+            
+            const location = [sido, sgk, emd].filter(x => x).join(' ');
+            
+            div.innerHTML = `
+                <div class="bid-title">${cltrNm}</div>
+                <div class="bid-info">위치: ${location || '정보 없음'}</div>
+                <div class="bid-info">공고번호: ${pbctNo}</div>
+                <div class="bid-info">공고기간: ${pbctBgnDt} ~ ${pbctEndDt}</div>
+                <div class="bid-price">최저입찰가: ${parseInt(minBidPrc).toLocaleString()}원</div>
+                <div class="bid-info">감정평가액: ${parseInt(apslAsesAvgAmt).toLocaleString()}원</div>
+            `;
+            
+            div.onclick = () => openBidModal(pbctNo, cltrNm);
+            return div;
+        }
+        
+        function searchWithFilters() {
+            loadCurrentPage(true);
+        }
+        
+        function clearFilters() {
+            document.getElementById('cltrNm').value = '';
+            document.getElementById('sido').value = '';
+            document.getElementById('sgk').value = '';
+            document.getElementById('emd').value = '';
+            document.getElementById('dpslMtdCd').value = '';
+            loadBids();
+        }
+        
+        function prevPage() {
+            const pageNo = document.getElementById('pageNo');
+            if (parseInt(pageNo.value) > 1) {
+                pageNo.value = parseInt(pageNo.value) - 1;
+                loadCurrentPage(true);
+            }
+        }
+        
+        function nextPage() {
+            const pageNo = document.getElementById('pageNo');
+            pageNo.value = parseInt(pageNo.value) + 1;
+            loadCurrentPage(true);
+        }
+        
+        function openBidModal(pbctNo, cltrNm) {
+            document.getElementById('modalPblancNo').value = pbctNo;
+            document.getElementById('modalPblancNm').textContent = cltrNm;
+            document.getElementById('bidModal').style.display = 'block';
+        }
+        
+        function closeBidModal() {
+            document.getElementById('bidModal').style.display = 'none';
+            document.getElementById('bidForm').reset();
+            document.getElementById('modalError').style.display = 'none';
+            document.getElementById('modalSuccess').style.display = 'none';
+        }
+        
+        function showTab(tabName) {
+            const tabs = document.querySelectorAll('.tab');
+            const tabContents = document.querySelectorAll('.tab-content');
+            
+            tabs.forEach(tab => tab.classList.remove('active'));
+            tabContents.forEach(content => content.style.display = 'none');
+            
+            if (tabName === 'list') {
+                document.querySelector('.tab:first-child').classList.add('active');
+                document.getElementById('listTab').style.display = 'block';
+            } else if (tabName === 'mybids') {
+                document.querySelector('.tab:last-child').classList.add('active');
+                document.getElementById('mybidsTab').style.display = 'block';
+                loadMyBids();
+            }
+        }
+        
+        async function loadMyBids() {
+            const myBidsList = document.getElementById('myBidsList');
+            try {
+                const token = localStorage.getItem('token');
+                if (!token) {
+                    myBidsList.innerHTML = '<div style="text-align: center; padding: 40px; color: #666;">로그인이 필요합니다.</div>';
+                    return;
+                }
+                
+                const response = await fetch('/api/my-bids-db', {
+                    headers: {
+                        'Authorization': 'Bearer ' + token
+                    }
+                });
+                const bids = await response.json();
+                
+                if (bids.length === 0) {
+                    myBidsList.innerHTML = '<div style="text-align: center; padding: 40px; color: #666;">입찰 내역이 없습니다.</div>';
+                } else {
+                    myBidsList.innerHTML = bids.map(bid => `
+                        <div class="bid-item">
+                            <div class="bid-title">${bid.pblncNm}</div>
+                            <div class="bid-info">공고번호: ${bid.pblncNo}</div>
+                            <div class="bid-price">입찰금액: ${bid.bidAmount.toLocaleString()}원</div>
+                            <div class="bid-info">입찰일시: ${new Date(bid.bidDate).toLocaleString()}</div>
+                        </div>
+                    `).join('');
+                }
+            } catch (err) {
+                myBidsList.innerHTML = '<div class="error">내 입찰 내역을 불러오는 중 오류가 발생했습니다.</div>';
+            }
+        }
+        
+        document.getElementById('bidForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const modalError = document.getElementById('modalError');
+            const modalSuccess = document.getElementById('modalSuccess');
+            
+            modalError.style.display = 'none';
+            modalSuccess.style.display = 'none';
+            
+            const formData = {
+                pblancNo: document.getElementById('modalPblancNo').value,
+                pblancNm: document.getElementById('modalPblancNm').textContent,
+                bidderName: document.getElementById('bidderName').value,
+                bidAmount: parseInt(document.getElementById('bidAmount').value),
+                phoneNumber: document.getElementById('phoneNumber').value,
+                email: document.getElementById('email').value
+            };
+            
+            try {
+                const token = localStorage.getItem('token');
+                if (!token) {
+                    modalError.textContent = '로그인이 필요합니다.';
+                    modalError.style.display = 'block';
+                    return;
+                }
+                
+                const response = await fetch('/api/submit-bid', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + token
+                    },
+                    body: JSON.stringify(formData)
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    modalSuccess.textContent = result.message || '입찰이 성공적으로 접수되었습니다.';
+                    modalSuccess.style.display = 'block';
+                    setTimeout(() => closeBidModal(), 2000);
+                } else {
+                    throw new Error(result.error || '입찰 접수에 실패했습니다.');
+                }
+            } catch (err) {
+                modalError.textContent = err.message;
+                modalError.style.display = 'block';
+            }
+        });
+        
+        window.onclick = function(event) {
+            const modal = document.getElementById('bidModal');
+            if (event.target === modal) {
+                closeBidModal();
+            }
+        };
+        
+        // 로그인 관련 함수들
+        let currentUser = null;
+        
+        function showLoginModal() {
+            document.getElementById('loginModal').style.display = 'block';
+        }
+        
+        function closeLoginModal() {
+            document.getElementById('loginModal').style.display = 'none';
+            document.getElementById('loginForm').reset();
+            document.getElementById('loginError').style.display = 'none';
+        }
+        
+        function showRegisterModal() {
+            document.getElementById('registerModal').style.display = 'block';
+        }
+        
+        function closeRegisterModal() {
+            document.getElementById('registerModal').style.display = 'none';
+            document.getElementById('registerForm').reset();
+            document.getElementById('registerError').style.display = 'none';
+            document.getElementById('registerSuccess').style.display = 'none';
+        }
+        
+        function updateAuthUI(user) {
+            if (user) {
+                document.getElementById('authSection').style.display = 'none';
+                document.getElementById('userSection').style.display = 'block';
+                document.getElementById('welcomeMessage').textContent = `환영합니다, ${user.username}님!`;
+                currentUser = user;
+            } else {
+                document.getElementById('authSection').style.display = 'block';
+                document.getElementById('userSection').style.display = 'none';
+                currentUser = null;
+            }
+        }
+        
+        function logout() {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            updateAuthUI(null);
+        }
+        
+        // 로그인 폼 처리
+        document.getElementById('loginForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const loginError = document.getElementById('loginError');
+            loginError.style.display = 'none';
+            
+            const formData = {
+                username: document.getElementById('loginUsername').value,
+                password: document.getElementById('loginPassword').value
+            };
+            
+            try {
+                const response = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(formData)
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    localStorage.setItem('token', result.token);
+                    localStorage.setItem('user', JSON.stringify({
+                        userId: result.userId,
+                        username: result.username
+                    }));
+                    updateAuthUI({ userId: result.userId, username: result.username });
+                    closeLoginModal();
+                } else {
+                    loginError.textContent = result.error;
+                    loginError.style.display = 'block';
+                }
+            } catch (err) {
+                loginError.textContent = '로그인 중 오류가 발생했습니다.';
+                loginError.style.display = 'block';
+            }
+        });
+        
+        // 회원가입 폼 처리
+        document.getElementById('registerForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const registerError = document.getElementById('registerError');
+            const registerSuccess = document.getElementById('registerSuccess');
+            registerError.style.display = 'none';
+            registerSuccess.style.display = 'none';
+            
+            const formData = {
+                username: document.getElementById('registerUsername').value,
+                password: document.getElementById('registerPassword').value,
+                email: document.getElementById('registerEmail').value,
+                phone: document.getElementById('registerPhone').value
+            };
+            
+            try {
+                const response = await fetch('/api/auth/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(formData)
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    registerSuccess.textContent = result.message;
+                    registerSuccess.style.display = 'block';
+                    setTimeout(() => closeRegisterModal(), 2000);
+                } else {
+                    registerError.textContent = result.error;
+                    registerError.style.display = 'block';
+                }
+            } catch (err) {
+                registerError.textContent = '회원가입 중 오류가 발생했습니다.';
+                registerError.style.display = 'block';
+            }
+        });
+        
+        // 페이지 로드시 토큰 확인
+        function checkAuthStatus() {
+            const token = localStorage.getItem('token');
+            const user = localStorage.getItem('user');
+            
+            if (token && user) {
+                updateAuthUI(JSON.parse(user));
+            }
+        }
+        
+        window.onload = function() {
+            checkAuthStatus();
+            loadBids();
+        };
+    </script>
+</body>
+</html>

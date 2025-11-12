@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.ljh.sideproj.mapper.KamcoBidMapper">
+    
+    <resultMap id="KamcoBidResultMap" type="KamcoBid">
+        <id property="id" column="id"/>
+        <result property="pbctNo" column="pbct_no"/>
+        <result property="cltrNm" column="cltr_nm"/>
+        <result property="sido" column="sido"/>
+        <result property="sgk" column="sgk"/>
+        <result property="emd" column="emd"/>
+        <result property="minBidPrc" column="min_bid_prc"/>
+        <result property="apslAsesAvgAmt" column="apsl_ases_avg_amt"/>
+        <result property="pbctBgnDt" column="pbct_bgn_dt"/>
+        <result property="pbctEndDt" column="pbct_end_dt"/>
+        <result property="dpslMtdCd" column="dpsl_mtd_cd"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+    
+    <insert id="insertOrUpdateKamcoBid" parameterType="KamcoBid">
+        INSERT INTO kamco_bids (pbct_no, cltr_nm, sido, sgk, emd, min_bid_prc, apsl_ases_avg_amt, pbct_bgn_dt, pbct_end_dt, dpsl_mtd_cd)
+        VALUES (#{pbctNo}, #{cltrNm}, #{sido}, #{sgk}, #{emd}, #{minBidPrc}, #{apslAsesAvgAmt}, #{pbctBgnDt}, #{pbctEndDt}, #{dpslMtdCd})
+        ON DUPLICATE KEY UPDATE
+        cltr_nm = VALUES(cltr_nm),
+        sido = VALUES(sido),
+        sgk = VALUES(sgk),
+        emd = VALUES(emd),
+        min_bid_prc = VALUES(min_bid_prc),
+        apsl_ases_avg_amt = VALUES(apsl_ases_avg_amt),
+        pbct_bgn_dt = VALUES(pbct_bgn_dt),
+        pbct_end_dt = VALUES(pbct_end_dt),
+        dpsl_mtd_cd = VALUES(dpsl_mtd_cd),
+        updated_at = NOW()
+    </insert>
+    
+    <select id="findWithFilters" resultMap="KamcoBidResultMap">
+        SELECT * FROM kamco_bids
+        <where>
+            <if test="sido != null and sido != ''">
+                AND sido = #{sido}
+            </if>
+            <if test="sgk != null and sgk != ''">
+                AND sgk LIKE CONCAT('%', #{sgk}, '%')
+            </if>
+            <if test="emd != null and emd != ''">
+                AND emd LIKE CONCAT('%', #{emd}, '%')
+            </if>
+            <if test="cltrNm != null and cltrNm != ''">
+                AND cltr_nm LIKE CONCAT('%', #{cltrNm}, '%')
+            </if>
+            <if test="dpslMtdCd != null and dpslMtdCd != ''">
+                AND dpsl_mtd_cd = #{dpslMtdCd}
+            </if>
+        </where>
+        ORDER BY created_at DESC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+    
+    <select id="countWithFilters" resultType="int">
+        SELECT COUNT(*) FROM kamco_bids
+        <where>
+            <if test="sido != null and sido != ''">
+                AND sido = #{sido}
+            </if>
+            <if test="sgk != null and sgk != ''">
+                AND sgk LIKE CONCAT('%', #{sgk}, '%')
+            </if>
+            <if test="emd != null and emd != ''">
+                AND emd LIKE CONCAT('%', #{emd}, '%')
+            </if>
+            <if test="cltrNm != null and cltrNm != ''">
+                AND cltr_nm LIKE CONCAT('%', #{cltrNm}, '%')
+            </if>
+            <if test="dpslMtdCd != null and dpslMtdCd != ''">
+                AND dpsl_mtd_cd = #{dpslMtdCd}
+            </if>
+        </where>
+    </select>
+    
+</mapper>
