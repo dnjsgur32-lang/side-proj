@@ -55,21 +55,34 @@ public class BidController {
     @GetMapping("/api/bids")
     public String getBids(@RequestParam(defaultValue = "1") int pageNo,
                          @RequestParam(defaultValue = "20") int numOfRows,
-                         @RequestParam(required = false) String search,
                          @RequestParam(required = false) String dpslMtdCd,
+                         @RequestParam(required = false) String ctgrHirkId,
+                         @RequestParam(required = false) String ctgrHirkIdMid,
                          @RequestParam(required = false) String sido,
                          @RequestParam(required = false) String sgk,
                          @RequestParam(required = false) String emd,
-                         @RequestParam(required = false) String cltrNm) {
+                         @RequestParam(required = false) Long goodsPriceFrom,
+                         @RequestParam(required = false) Long goodsPriceTo,
+                         @RequestParam(required = false) Long openPriceFrom,
+                         @RequestParam(required = false) Long openPriceTo,
+                         @RequestParam(required = false) String cltrNm,
+                         @RequestParam(required = false) String pbctBegnDtm,
+                         @RequestParam(required = false) String pbctClsDtm,
+                         @RequestParam(required = false) String cltrMnmtNo) {
         try {
             StringBuilder uriBuilder = new StringBuilder(baseUrl);
             uriBuilder.append("?serviceKey=").append(serviceKey)
                      .append("&numOfRows=").append(numOfRows)
                      .append("&pageNo=").append(pageNo);
             
-            // 추가 파라미터들
             if (dpslMtdCd != null && !dpslMtdCd.trim().isEmpty()) {
                 uriBuilder.append("&DPSL_MTD_CD=").append(dpslMtdCd);
+            }
+            if (ctgrHirkId != null && !ctgrHirkId.trim().isEmpty()) {
+                uriBuilder.append("&CTGR_HIRK_ID=").append(ctgrHirkId);
+            }
+            if (ctgrHirkIdMid != null && !ctgrHirkIdMid.trim().isEmpty()) {
+                uriBuilder.append("&CTGR_HIRK_ID_MID=").append(ctgrHirkIdMid);
             }
             if (sido != null && !sido.trim().isEmpty()) {
                 uriBuilder.append("&SIDO=").append(sido);
@@ -80,8 +93,29 @@ public class BidController {
             if (emd != null && !emd.trim().isEmpty()) {
                 uriBuilder.append("&EMD=").append(emd);
             }
+            if (goodsPriceFrom != null) {
+                uriBuilder.append("&GOODS_PRICE_FROM=").append(goodsPriceFrom);
+            }
+            if (goodsPriceTo != null) {
+                uriBuilder.append("&GOODS_PRICE_TO=").append(goodsPriceTo);
+            }
+            if (openPriceFrom != null) {
+                uriBuilder.append("&OPEN_PRICE_FROM=").append(openPriceFrom);
+            }
+            if (openPriceTo != null) {
+                uriBuilder.append("&OPEN_PRICE_TO=").append(openPriceTo);
+            }
             if (cltrNm != null && !cltrNm.trim().isEmpty()) {
                 uriBuilder.append("&CLTR_NM=").append(cltrNm);
+            }
+            if (pbctBegnDtm != null && !pbctBegnDtm.trim().isEmpty()) {
+                uriBuilder.append("&PBCT_BEGN_DTM=").append(pbctBegnDtm);
+            }
+            if (pbctClsDtm != null && !pbctClsDtm.trim().isEmpty()) {
+                uriBuilder.append("&PBCT_CLS_DTM=").append(pbctClsDtm);
+            }
+            if (cltrMnmtNo != null && !cltrMnmtNo.trim().isEmpty()) {
+                uriBuilder.append("&CLTR_MNMT_NO=").append(cltrMnmtNo);
             }
             
             return WebClient.create()
@@ -128,6 +162,44 @@ public class BidController {
             return "<pre>" + response + "</pre>";
         } catch (Exception e) {
             return "<pre>API 호출 오류: " + e.getMessage() + "</pre>";
+        }
+    }
+    
+    @GetMapping("/api/test-region-raw")
+    public String testRegionRawApi(@RequestParam(defaultValue = "서울특별시") String sido) {
+        try {
+            String uri = baseUrl + "?serviceKey=" + serviceKey + "&numOfRows=5&pageNo=1&SIDO=" + sido;
+            System.out.println("테스트 URI: " + uri);
+            String response = WebClient.create()
+                    .get()
+                    .uri(uri)
+                    .retrieve()
+                    .bodyToMono(String.class)
+                    .block();
+            return "<pre>" + response + "</pre>";
+        } catch (Exception e) {
+            return "<pre>API 호출 오류: " + e.getMessage() + "</pre>";
+        }
+    }
+    
+    @GetMapping("/api/simple-sync")
+    public ResponseEntity<?> simpleSync(@RequestParam(defaultValue = "10") int count) {
+        try {
+            String uri = baseUrl + "?serviceKey=" + serviceKey + "&numOfRows=" + count + "&pageNo=1";
+            System.out.println("API 호출: " + uri);
+            
+            String xmlResponse = webClient.get().uri(uri).retrieve().bodyToMono(String.class).block();
+            System.out.println("응답 길이: " + xmlResponse.length());
+            
+            int saved = parseAndSaveKamcoDataWithCount(xmlResponse);
+            
+            return ResponseEntity.ok().body(Map.of(
+                "message", "동기화 완료",
+                "saved", saved
+            ));
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
     }
 
@@ -417,6 +489,9 @@ public class BidController {
                     kamcoBid.setPbctBgnDt(truncateString(getElementText(item, "PBCT_BGN_DT"), 20));
                     kamcoBid.setPbctEndDt(truncateString(getElementText(item, "PBCT_END_DT"), 20));
                     kamcoBid.setDpslMtdCd(truncateString(getElementText(item, "DPSL_MTD_CD"), 10));
+                    kamcoBid.setCtgrHirkId(truncateString(getElementText(item, "CTGR_HIRK_ID"), 20));
+                    kamcoBid.setCtgrHirkIdMid(truncateString(getElementText(item, "CTGR_HIRK_ID_MID"), 20));
+                    kamcoBid.setCltrMnmtNo(truncateString(getElementText(item, "CLTR_MNMT_NO"), 50));
                     
                     kamcoBidMapper.insertOrUpdateKamcoBid(kamcoBid);
                 } catch (Exception e) {
@@ -450,6 +525,56 @@ public class BidController {
         return trimmed.length() > maxLength ? trimmed.substring(0, maxLength) : trimmed;
     }
     
+    private int parseAndSaveKamcoDataByRegion(String xmlResponse, String targetSido, int maxCount) {
+        try {
+            DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+            DocumentBuilder builder = factory.newDocumentBuilder();
+            Document doc = builder.parse(new ByteArrayInputStream(xmlResponse.getBytes("UTF-8")));
+            
+            NodeList items = doc.getElementsByTagName("item");
+            int savedCount = 0;
+            
+            for (int i = 0; i < items.getLength() && savedCount < maxCount; i++) {
+                Element item = (Element) items.item(i);
+                
+                try {
+                    String cltrNm = getElementText(item, "CLTR_NM");
+                    String sido = extractSidoFromAddress(cltrNm);
+                    
+                    if (!targetSido.equals(sido)) continue;
+                    
+                    KamcoBid kamcoBid = new KamcoBid();
+                    String pbctNo = truncateString(getElementText(item, "PBCT_NO"), 50);
+                    
+                    if (pbctNo == null || pbctNo.trim().isEmpty()) continue;
+                    
+                    kamcoBid.setPbctNo(pbctNo);
+                    kamcoBid.setCltrNm(truncateString(getElementText(item, "CLTR_NM"), 500));
+                    kamcoBid.setSido(truncateString(sido, 50));
+                    kamcoBid.setSgk(truncateString(getElementText(item, "SGK"), 50));
+                    kamcoBid.setEmd(truncateString(getElementText(item, "EMD"), 50));
+                    kamcoBid.setMinBidPrc(parseLong(getElementText(item, "MIN_BID_PRC")));
+                    kamcoBid.setApslAsesAvgAmt(parseLong(getElementText(item, "APSL_ASES_AVG_AMT")));
+                    kamcoBid.setPbctBgnDt(truncateString(getElementText(item, "PBCT_BGN_DT"), 20));
+                    kamcoBid.setPbctEndDt(truncateString(getElementText(item, "PBCT_END_DT"), 20));
+                    kamcoBid.setDpslMtdCd(truncateString(getElementText(item, "DPSL_MTD_CD"), 10));
+                    kamcoBid.setCtgrHirkId(truncateString(getElementText(item, "CTGR_HIRK_ID"), 20));
+                    kamcoBid.setCtgrHirkIdMid(truncateString(getElementText(item, "CTGR_HIRK_ID_MID"), 20));
+                    kamcoBid.setCltrMnmtNo(truncateString(getElementText(item, "CLTR_MNMT_NO"), 50));
+                    
+                    kamcoBidMapper.insertOrUpdateKamcoBid(kamcoBid);
+                    savedCount++;
+                } catch (Exception e) {
+                    continue;
+                }
+            }
+            
+            return savedCount;
+        } catch (Exception e) {
+            throw new RuntimeException("XML 파싱 오류: " + e.getMessage());
+        }
+    }
+    
     // 테스트용 간단한 입찰 API
     @Operation(summary = "테스트 입찰", description = "간단한 입찰 테스트")
     @GetMapping("/api/test-bid")
@@ -472,5 +597,111 @@ public class BidController {
                 "error", "테스트 입찰 실패: " + e.getMessage()
             ));
         }
+    }
+    
+    // 지역별 조건 동기화 (전체 데이터 가져온 후 필터링)
+    @Operation(summary = "지역별 조건 동기화", description = "특정 지역의 데이터를 지정한 개수만큼 동기화")
+    @GetMapping("/api/sync-by-region")
+    public ResponseEntity<?> syncByRegion(
+            @RequestParam String sido,
+            @RequestParam(defaultValue = "1000") int maxCount) {
+        try {
+            int totalSaved = 0;
+            int pageNo = 1;
+            
+            while (totalSaved < maxCount) {
+                String uri = baseUrl + "?serviceKey=" + serviceKey + "&numOfRows=100&pageNo=" + pageNo;
+                
+                String xmlResponse = webClient.get().uri(uri).retrieve().bodyToMono(String.class).block();
+                int savedCount = parseAndSaveKamcoDataByRegion(xmlResponse, sido, maxCount - totalSaved);
+                
+                if (savedCount == 0) break;
+                
+                totalSaved += savedCount;
+                pageNo++;
+                
+                System.out.println(sido + " - 페이지 " + pageNo + ": " + savedCount + "개 저장 (총 " + totalSaved + "개)");
+                
+                if (pageNo > 50) break;
+            }
+            
+            return ResponseEntity.ok().body(Map.of(
+                "message", sido + " 동기화 완료",
+                "sido", sido,
+                "totalSaved", totalSaved
+            ));
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+    
+    private String extractSidoFromAddress(String address) {
+        if (address == null || address.isEmpty()) return "";
+        
+        String[] regions = {
+            "서울특별시", "부산광역시", "대구광역시", "인천광역시",
+            "광주광역시", "대전광역시", "울산광역시", "세종특별자치시",
+            "경기도", "강원도", "충청북도", "충청남도",
+            "전라북도", "전라남도", "경상북도", "경상남도", "제주특별자치도"
+        };
+        
+        for (String region : regions) {
+            if (address.contains(region)) {
+                return region;
+            }
+        }
+        
+        return "";
+    }
+    
+    // 전국 주요 도시 일괄 동기화
+    @Operation(summary = "전국 주요 도시 일괄 동기화", description = "각 시도별로 지정한 개수만큼 데이터 동기화")
+    @GetMapping("/api/sync-all-regions")
+    public ResponseEntity<?> syncAllRegions(@RequestParam(defaultValue = "1000") int countPerRegion) {
+        String[] regions = {
+            "서울특별시", "부산광역시", "대구광역시", "인천광역시",
+            "광주광역시", "대전광역시", "울산광역시", "세종특별자치시",
+            "경기도", "강원도", "충청북도", "충청남도",
+            "전라북도", "전라남도", "경상북도", "경상남도", "제주특별자치도"
+        };
+        
+        Map<String, Integer> results = new HashMap<>();
+        int grandTotal = 0;
+        
+        for (String sido : regions) {
+            try {
+                int totalSaved = 0;
+                int pageNo = 1;
+                
+                while (totalSaved < countPerRegion) {
+                    String uri = baseUrl + "?serviceKey=" + serviceKey + "&numOfRows=100&pageNo=" + pageNo;
+                    
+                    String xmlResponse = webClient.get().uri(uri).retrieve().bodyToMono(String.class).block();
+                    int savedCount = parseAndSaveKamcoDataByRegion(xmlResponse, sido, countPerRegion - totalSaved);
+                    
+                    if (savedCount == 0) break;
+                    
+                    totalSaved += savedCount;
+                    pageNo++;
+                    
+                    if (pageNo > 50) break;
+                }
+                
+                results.put(sido, totalSaved);
+                grandTotal += totalSaved;
+                System.out.println(sido + " 완료: " + totalSaved + "개");
+                
+            } catch (Exception e) {
+                results.put(sido, 0);
+                System.out.println(sido + " 오류: " + e.getMessage());
+            }
+        }
+        
+        return ResponseEntity.ok().body(Map.of(
+            "message", "전국 동기화 완료",
+            "grandTotal", grandTotal,
+            "results", results
+        ));
     }
 }

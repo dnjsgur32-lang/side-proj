@@ -16,6 +16,13 @@ public class KamcoBid {
     private String pbctBgnDt;
     private String pbctEndDt;
     private String dpslMtdCd;
+    private String ctgrHirkId;
+    private String ctgrHirkIdMid;
+    private Long goodsPriceFrom;
+    private Long goodsPriceTo;
+    private Long openPriceFrom;
+    private Long openPriceTo;
+    private String cltrMnmtNo;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

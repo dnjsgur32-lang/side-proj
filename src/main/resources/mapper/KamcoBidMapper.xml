@@ -15,13 +15,20 @@
         <result property="pbctBgnDt" column="pbct_bgn_dt"/>
         <result property="pbctEndDt" column="pbct_end_dt"/>
         <result property="dpslMtdCd" column="dpsl_mtd_cd"/>
+        <result property="ctgrHirkId" column="ctgr_hirk_id"/>
+        <result property="ctgrHirkIdMid" column="ctgr_hirk_id_mid"/>
+        <result property="goodsPriceFrom" column="goods_price_from"/>
+        <result property="goodsPriceTo" column="goods_price_to"/>
+        <result property="openPriceFrom" column="open_price_from"/>
+        <result property="openPriceTo" column="open_price_to"/>
+        <result property="cltrMnmtNo" column="cltr_mnmt_no"/>
         <result property="createdAt" column="created_at"/>
         <result property="updatedAt" column="updated_at"/>
     </resultMap>
     
     <insert id="insertOrUpdateKamcoBid" parameterType="KamcoBid">
-        INSERT INTO kamco_bids (pbct_no, cltr_nm, sido, sgk, emd, min_bid_prc, apsl_ases_avg_amt, pbct_bgn_dt, pbct_end_dt, dpsl_mtd_cd)
-        VALUES (#{pbctNo}, #{cltrNm}, #{sido}, #{sgk}, #{emd}, #{minBidPrc}, #{apslAsesAvgAmt}, #{pbctBgnDt}, #{pbctEndDt}, #{dpslMtdCd})
+        INSERT INTO kamco_bids (pbct_no, cltr_nm, sido, sgk, emd, min_bid_prc, apsl_ases_avg_amt, pbct_bgn_dt, pbct_end_dt, dpsl_mtd_cd, ctgr_hirk_id, ctgr_hirk_id_mid, cltr_mnmt_no)
+        VALUES (#{pbctNo}, #{cltrNm}, #{sido}, #{sgk}, #{emd}, #{minBidPrc}, #{apslAsesAvgAmt}, #{pbctBgnDt}, #{pbctEndDt}, #{dpslMtdCd}, #{ctgrHirkId}, #{ctgrHirkIdMid}, #{cltrMnmtNo})
         ON DUPLICATE KEY UPDATE
         cltr_nm = VALUES(cltr_nm),
         sido = VALUES(sido),
@@ -32,6 +39,9 @@
         pbct_bgn_dt = VALUES(pbct_bgn_dt),
         pbct_end_dt = VALUES(pbct_end_dt),
         dpsl_mtd_cd = VALUES(dpsl_mtd_cd),
+        ctgr_hirk_id = VALUES(ctgr_hirk_id),
+        ctgr_hirk_id_mid = VALUES(ctgr_hirk_id_mid),
+        cltr_mnmt_no = VALUES(cltr_mnmt_no),
         updated_at = NOW()
     </insert>
     
