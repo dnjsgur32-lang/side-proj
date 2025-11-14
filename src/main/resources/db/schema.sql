@@ -98,3 +98,22 @@ CREATE TABLE IF NOT EXISTS notifications (
     INDEX idx_is_read (is_read),
     INDEX idx_created_at (created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 북마크 테이블
+CREATE TABLE IF NOT EXISTS user_bookmarks
+(
+    bookmark_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_id     BIGINT      NOT NULL,
+    pbct_no     VARCHAR(50) NOT NULL,
+    created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users (user_id) ON DELETE CASCADE,
+    UNIQUE KEY unique_user_bookmark (user_id, pbct_no),
+    INDEX idx_user_id (user_id),
+    INDEX idx_pbct_no (pbct_no)
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4
+  COLLATE = utf8mb4_unicode_ci;
+
+show tables;
+
+SELECT COUNT(*) FROM kamco_bids;
