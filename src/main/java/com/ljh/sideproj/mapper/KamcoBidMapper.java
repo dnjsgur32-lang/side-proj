@@ -9,6 +9,7 @@ public interface KamcoBidMapper {
     void insertKamcoBid(KamcoBid kamcoBid);
     void insertOrUpdateKamcoBid(KamcoBid kamcoBid);
     List<KamcoBid> findAll();
+    KamcoBid findByPbctNo(String pbctNo);
     List<KamcoBid> findWithFilters(String sido, String sgk, String emd, String cltrNm, String dpslMtdCd, int offset, int limit);
     int countWithFilters(String sido, String sgk, String emd, String cltrNm, String dpslMtdCd);
 }

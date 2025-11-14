@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>입찰 상세 정보</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f5f5f5; }
+        .header { background: #2c3e50; color: white; padding: 20px; text-align: center; }
+        .container { max-width: 1000px; margin: 20px auto; padding: 0 20px; }
+        .card { background: white; border-radius: 8px; padding: 30px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .btn { background: #3498db; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; margin: 5px; }
+        .btn:hover { background: #2980b9; }
+        .btn-success { background: #27ae60; }
+        .btn-success:hover { background: #229954; }
+        .btn-warning { background: #f39c12; }
+        .btn-warning:hover { background: #e67e22; }
+        .back-btn { background: #95a5a6; }
+        .back-btn:hover { background: #7f8c8d; }
+        .info-grid { display: grid; grid-template-columns: 200px 1fr; gap: 15px; margin-bottom: 15px; }
+        .info-label { font-weight: bold; color: #34495e; }
+        .info-value { color: #2c3e50; }
+        .price { color: #e74c3c; font-weight: bold; font-size: 1.2em; }
+        .status { padding: 5px 15px; border-radius: 20px; display: inline-block; font-size: 14px; }
+        .status-active { background: #d4edda; color: #155724; }
+        .status-ended { background: #f8d7da; color: #721c24; }
+        .loading { text-align: center; padding: 60px; color: #7f8c8d; }
+        .section-title { font-size: 1.3em; color: #2c3e50; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid #3498db; }
+        .action-buttons { margin-top: 30px; text-align: center; }
+    </style>
+</head>
+<body>
+<div class="header">
+    <h1>🏛️ 입찰 상세 정보</h1>
+</div>
+
+<div class="container">
+    <button class="btn back-btn" onclick="history.back()">← 뒤로 가기</button>
+
+    <div id="loading" class="loading">데이터를 불러오는 중...</div>
+
+    <div id="detailContainer" style="display: none;">
+        <div class="card">
+            <h2 class="section-title">기본 정보</h2>
+            <div class="info-grid">
+                <div class="info-label">공고번호</div>
+                <div class="info-value" id="pbctNo">-</div>
+                
+                <div class="info-label">물건명</div>
+                <div class="info-value" id="cltrNm">-</div>
+                
+                <div class="info-label">상태</div>
+                <div class="info-value" id="status">-</div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2 class="section-title">가격 정보</h2>
+            <div class="info-grid">
+                <div class="info-label">최저 입찰가</div>
+                <div class="info-value price" id="minBidPrc">-</div>
+                
+                <div class="info-label">감정가</div>
+                <div class="info-value price" id="apslAsesAvgAmt">-</div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2 class="section-title">위치 정보</h2>
+            <div class="info-grid">
+                <div class="info-label">시도</div>
+                <div class="info-value" id="sido">-</div>
+                
+                <div class="info-label">시군구</div>
+                <div class="info-value" id="sgk">-</div>
+                
+                <div class="info-label">읍면동</div>
+                <div class="info-value" id="emd">-</div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2 class="section-title">입찰 일정</h2>
+            <div class="info-grid">
+                <div class="info-label">입찰 시작일</div>
+                <div class="info-value" id="pbctBgnDt">-</div>
+                
+                <div class="info-label">입찰 마감일</div>
+                <div class="info-value" id="pbctEndDt">-</div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2 class="section-title">💰 입찰 신청</h2>
+            <div class="info-grid">
+                <div class="info-label">입찰 금액 (만원)</div>
+                <div class="info-value">
+                    <input type="number" id="bidAmount" placeholder="입찰 금액 입력" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px;">
+                </div>
+            </div>
+            <div style="margin-top: 20px; text-align: center;">
+                <button class="btn" onclick="submitBid()" style="background: #e74c3c; font-size: 1.1em; padding: 15px 40px;">📝 입찰 신청</button>
+            </div>
+        </div>
+
+        <div class="card action-buttons">
+            <button class="btn btn-success" onclick="addBookmark()">⭐ 북마크 추가</button>
+            <button class="btn btn-warning" onclick="setAlert()">🔔 알림 설정</button>
+            <button class="btn" onclick="location.href='/bids'">📋 목록으로</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const urlParams = new URLSearchParams(window.location.search);
+    const pbctNo = urlParams.get('pbctNo');
+
+    if (!pbctNo) {
+        document.getElementById('loading').innerHTML = '❌ 공고번호가 없습니다.';
+    } else {
+        loadBidDetail();
+    }
+
+    async function loadBidDetail() {
+        try {
+            const response = await fetch(`/api/bid/${pbctNo}`);
+            if (!response.ok) {
+                throw new Error('데이터 로드 실패');
+            }
+            
+            const bid = await response.json();
+            displayBidDetail(bid);
+        } catch (error) {
+            document.getElementById('loading').innerHTML = '❌ 오류: ' + error.message;
+        }
+    }
+
+    function displayBidDetail(bid) {
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('detailContainer').style.display = 'block';
+
+        document.getElementById('pbctNo').textContent = bid.pbctNo || '-';
+        document.getElementById('cltrNm').textContent = bid.cltrNm || '-';
+        document.getElementById('sido').textContent = bid.sido || '-';
+        document.getElementById('sgk').textContent = bid.sgk || '-';
+        document.getElementById('emd').textContent = bid.emd || '-';
+        document.getElementById('minBidPrc').textContent = formatPrice(bid.minBidPrc);
+        document.getElementById('apslAsesAvgAmt').textContent = formatPrice(bid.apslAsesAvgAmt);
+        document.getElementById('pbctBgnDt').textContent = formatDate(bid.pbctBgnDt);
+        document.getElementById('pbctEndDt').textContent = formatDate(bid.pbctEndDt);
+
+        const today = new Date().toISOString().slice(0, 8).replace(/-/g, '');
+        const isActive = bid.pbctEndDt && bid.pbctEndDt >= today;
+        document.getElementById('status').innerHTML = `<span class="status ${isActive ? 'status-active' : 'status-ended'}">${isActive ? '진행중' : '마감'}</span>`;
+    }
+
+    function formatPrice(price) {
+        if (!price) return '-';
+        return (price / 10000).toLocaleString() + '만원';
+    }
+
+    function formatDate(dateStr) {
+        if (!dateStr || dateStr.length !== 8) return '-';
+        return `${dateStr.slice(0,4)}-${dateStr.slice(4,6)}-${dateStr.slice(6,8)}`;
+    }
+
+    async function addBookmark() {
+        const token = localStorage.getItem('token');
+        if (!token) {
+            alert('로그인이 필요합니다.');
+            location.href = '/login';
+            return;
+        }
+
+        try {
+            const response = await fetch('/api/bookmarks', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + token
+                },
+                body: JSON.stringify({ pbctNo: pbctNo })
+            });
+
+            const data = await response.json();
+            if (response.ok) {
+                alert('✅ 북마크에 추가되었습니다!');
+            } else {
+                alert('❌ ' + data.error);
+            }
+        } catch (error) {
+            alert('오류: ' + error.message);
+        }
+    }
+
+    function setAlert() {
+        const token = localStorage.getItem('token');
+        if (!token) {
+            alert('로그인이 필요합니다.');
+            location.href = '/login';
+            return;
+        }
+        location.href = '/notifications?pbctNo=' + pbctNo;
+    }
+
+    async function submitBid() {
+        const token = localStorage.getItem('token');
+        if (!token) {
+            alert('로그인이 필요합니다.');
+            location.href = '/login';
+            return;
+        }
+
+        const bidAmount = document.getElementById('bidAmount').value;
+        if (!bidAmount || bidAmount <= 0) {
+            alert('입찰 금액을 입력해주세요.');
+            return;
+        }
+
+        const cltrNm = document.getElementById('cltrNm').textContent;
+        const minBidPrc = document.getElementById('minBidPrc').textContent.replace(/[^0-9]/g, '');
+        
+        if (parseInt(bidAmount) * 10000 < parseInt(minBidPrc)) {
+            if (!confirm('최저 입찰가보다 낮은 금액입니다. 그래도 신청하시겠습니까?')) {
+                return;
+            }
+        }
+
+        if (!confirm(`입찰 금액: ${parseInt(bidAmount).toLocaleString()}만원\n\n입찰을 신청하시겠습니까?`)) {
+            return;
+        }
+
+        try {
+            const response = await fetch('/api/submit-bid', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + token
+                },
+                body: JSON.stringify({
+                    pblancNo: pbctNo,
+                    pblancNm: cltrNm,
+                    bidAmount: parseInt(bidAmount) * 10000
+                })
+            });
+
+            const data = await response.json();
+            if (response.ok && data.success) {
+                alert('✅ 입찰 신청이 완료되었습니다!');
+                document.getElementById('bidAmount').value = '';
+            } else {
+                alert('❌ ' + (data.error || data.message || '입찰 신청 실패'));
+            }
+        } catch (error) {
+            alert('오류: ' + error.message);
+        }
+    }
+</script>
+</body>
+</html>

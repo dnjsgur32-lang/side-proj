@@ -45,6 +45,10 @@
         updated_at = NOW()
     </insert>
     
+    <select id="findByPbctNo" resultMap="KamcoBidResultMap">
+        SELECT * FROM kamco_bids WHERE pbct_no = #{pbctNo}
+    </select>
+    
     <select id="findWithFilters" resultMap="KamcoBidResultMap">
         SELECT * FROM kamco_bids
         <where>

@@ -35,4 +35,14 @@ public class HomeController {
     public String bookmarks() {
         return "bookmarks";
     }
+
+    @GetMapping("/bid-detail")
+    public String bidDetail() {
+        return "bid-detail";
+    }
+
+    @GetMapping("/my-bids")
+    public String myBids() {
+        return "my-bids";
+    }
 }
