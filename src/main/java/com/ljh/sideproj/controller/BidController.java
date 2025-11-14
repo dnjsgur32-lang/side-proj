@@ -305,7 +305,7 @@ public class BidController {
         try {
             int totalSaved = 0;
             
-            for (int i = 1; i <= 10; i++) {
+            for (int i = 1; i <= 50; i++) {
                 try {
                     String uri = baseUrl + "?serviceKey=" + serviceKey + "&numOfRows=100&pageNo=" + i;
                     String xmlResponse = webClient
