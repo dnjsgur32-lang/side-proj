@@ -23,6 +23,15 @@ public class KamcoBid {
     private Long openPriceFrom;
     private Long openPriceTo;
     private String cltrMnmtNo;
+    private String saleType;
+    private String detailAddress;
+    private Long appraisalValue;
+    private Long depositAmount;
+    private String bidMethod;
+    private String areaSize;
+    private String buildingStructure;
+    private String landUse;
+    private String remarks;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

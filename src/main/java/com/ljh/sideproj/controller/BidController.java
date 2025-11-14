@@ -492,6 +492,15 @@ public class BidController {
                     kamcoBid.setCtgrHirkId(truncateString(getElementText(item, "CTGR_HIRK_ID"), 20));
                     kamcoBid.setCtgrHirkIdMid(truncateString(getElementText(item, "CTGR_HIRK_ID_MID"), 20));
                     kamcoBid.setCltrMnmtNo(truncateString(getElementText(item, "CLTR_MNMT_NO"), 50));
+                    kamcoBid.setSaleType(truncateString(getElementText(item, "SALE_TYPE"), 20));
+                    kamcoBid.setDetailAddress(truncateString(getElementText(item, "DETAIL_ADDR"), 500));
+                    kamcoBid.setAppraisalValue(parseLong(getElementText(item, "APPRAISAL_VALUE")));
+                    kamcoBid.setDepositAmount(parseLong(getElementText(item, "DEPOSIT_AMT")));
+                    kamcoBid.setBidMethod(truncateString(getElementText(item, "BID_METHOD"), 50));
+                    kamcoBid.setAreaSize(truncateString(getElementText(item, "AREA_SIZE"), 100));
+                    kamcoBid.setBuildingStructure(truncateString(getElementText(item, "BUILDING_STRUCTURE"), 100));
+                    kamcoBid.setLandUse(truncateString(getElementText(item, "LAND_USE"), 100));
+                    kamcoBid.setRemarks(truncateString(getElementText(item, "REMARKS"), 1000));
                     
                     kamcoBidMapper.insertOrUpdateKamcoBid(kamcoBid);
                 } catch (Exception e) {
