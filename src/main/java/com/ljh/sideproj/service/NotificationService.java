@@ -71,4 +71,8 @@ public class NotificationService {
     public List<UserAlert> getActiveAlerts() {
         return userAlertMapper.findActiveAlerts();
     }
+
+    public void deleteAllNotifications(Long userId) {
+        notificationMapper.deleteAllByUserId(userId);
+    }
 }

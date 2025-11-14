@@ -15,4 +15,5 @@ public interface NotificationMapper {
     void markAllAsRead(Long userId);
     void deleteNotification(Long notificationId);
     int countUnreadByUserId(Long userId);
+    void deleteAllByUserId(Long userId);
 }

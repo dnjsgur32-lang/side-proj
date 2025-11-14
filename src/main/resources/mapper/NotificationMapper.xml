@@ -37,10 +37,22 @@
         WHERE notification_id = #{notificationId}
     </delete>
 
+    <select id="findUnreadByUserId" parameterType="long" resultType="Notification">
+        SELECT notification_id, user_id, pbct_no, notification_type, message, is_read, created_at
+        FROM notifications
+        WHERE user_id = #{userId} AND is_read = FALSE
+        ORDER BY created_at DESC
+    </select>
+
     <select id="countUnreadByUserId" parameterType="long" resultType="int">
         SELECT COUNT(*)
         FROM notifications
         WHERE user_id = #{userId} AND is_read = FALSE
     </select>
+
+    <delete id="deleteAllByUserId" parameterType="long">
+        DELETE FROM notifications
+        WHERE user_id = #{userId}
+    </delete>
 
 </mapper>

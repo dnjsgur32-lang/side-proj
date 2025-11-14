@@ -76,6 +76,7 @@ CREATE TABLE IF NOT EXISTS user_alerts
     pbct_no           VARCHAR(50),
     alert_type        VARCHAR(20) NOT NULL, -- 'DEADLINE', 'PRICE', 'NEW'
     alert_days_before INT       DEFAULT 1,
+    target_price      BIGINT    DEFAULT NULL,
     is_active         BOOLEAN   DEFAULT TRUE,
     created_at        TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users (user_id) ON DELETE CASCADE,

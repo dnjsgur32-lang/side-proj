@@ -11,6 +11,7 @@ public class UserAlert {
     private String pbctNo;
     private String alertType;
     private Integer alertDaysBefore;
+    private Long targetPrice;
     private Boolean isActive;
     private LocalDateTime createdAt;
 }

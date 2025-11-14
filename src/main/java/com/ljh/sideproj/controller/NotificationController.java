@@ -99,4 +99,32 @@ public class NotificationController {
         notificationService.deleteAlert(id);
         return ResponseEntity.ok(Map.of("success", true, "message", "알림 설정이 삭제되었습니다."));
     }
+
+    @Operation(summary = "알림 삭제")
+    @DeleteMapping("/{id}")
+    public ResponseEntity<?> deleteNotification(@PathVariable Long id) {
+        notificationService.deleteNotification(id);
+        return ResponseEntity.ok(Map.of("success", true, "message", "알림을 삭제했습니다."));
+    }
+
+    @Operation(summary = "모든 알림 삭제")
+    @DeleteMapping("/delete-all")
+    public ResponseEntity<?> deleteAllNotifications(Authentication auth) {
+        if (auth == null) {
+            return ResponseEntity.status(401).body(Map.of("error", "로그인이 필요합니다."));
+        }
+        Long userId = (Long) auth.getDetails();
+        notificationService.deleteAllNotifications(userId);
+        return ResponseEntity.ok(Map.of("success", true, "message", "모든 알림을 삭제했습니다."));
+    }
+
+    @GetMapping("/test")
+    public ResponseEntity<?> createTestNotification(Authentication auth) {
+        if (auth == null) {
+            return ResponseEntity.status(401).body(Map.of("error", "로그인이 필요합니다."));
+        }
+        Long userId = (Long) auth.getDetails();
+        notificationService.createNotification(userId, "TEST-001", "TEST", "테스트 알림입니다!!!");
+        return ResponseEntity.ok(Map.of("success", true, "message", "테스트 알림이 생성되었습니다!!!!"));
+    }
 }

@@ -31,7 +31,7 @@ public class NotificationScheduler {
 
         for (UserAlert alert : alerts) {
             if ("DEADLINE".equals(alert.getAlertType()) && alert.getPbctNo() != null) {
-                checkBiDeadline(alert);
+                checkBidDeadline(alert);
             }
         }
     }
@@ -60,7 +60,7 @@ public class NotificationScheduler {
         }
     }
 
-    private void checkBiDeadline (UserAlert alert) {
+    private void checkBidDeadline (UserAlert alert) {
         try {
             List<KamcoBid> bids = kamcoBidMapper.findWithFilters(null, null, null, null, null, 0, 1000);
 
