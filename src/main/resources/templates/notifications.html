@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>알림 관리</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f5f5f5; }
+        .header { background: #2c3e50; color: white; padding: 20px; }
+        .container { max-width: 1000px; margin: 30px auto; padding: 0 20px; }
+        .card { background: white; border-radius: 8px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .btn { background: #3498db; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; margin: 5px; }
+        .btn:hover { background: #2980b9; }
+        .notification { border-left: 4px solid #3498db; padding: 15px; margin: 10px 0; background: #f8f9fa; border-radius: 4px; }
+        .notification.unread { background: #e3f2fd; border-left-color: #2196f3; }
+        .alert-item { border-left: 4px solid #27ae60; padding: 15px; margin: 10px 0; background: #f8f9fa; border-radius: 4px; }
+        .alert-item.inactive { opacity: 0.5; border-left-color: #95a5a6; }
+        input, select { padding: 10px; margin: 5px; border: 1px solid #ddd; border-radius: 4px; width: 200px; }
+        .btn-danger { background: #e74c3c; }
+        .btn-danger:hover { background: #c0392b; }
+        .bid-item { border: 1px solid #ddd; padding: 15px; margin: 10px 0; border-radius: 4px; cursor: pointer; transition: all 0.2s; }
+        .bid-item:hover { background: #f0f0f0; border-color: #667eea; }
+    </style>
+</head>
+<body>
+<div class="header">
+    <h1>🔔 알림 관리</h1>
+    <button class="btn" onclick="location.href='/'">← 홈으로</button>
+</div>
+
+<div class="container">
+    <div class="card" id="welcomeCard" style="display:none;">
+        <h2 id="welcomeMessage"></h2>
+    </div>
+
+    <div class="card" id="bidListSection" style="display:none;">
+        <h2>📋 입찰 목록에서 선택</h2>
+        <p>알림을 받고 싶은 입찰 물건을 선택하세요</p>
+        <input type="text" id="searchKeyword" placeholder="물건명 검색" style="width: 300px;">
+        <button class="btn" onclick="searchBids()">검색</button>
+        <div id="bidList" style="max-height: 400px; overflow-y: auto; margin-top: 10px;"></div>
+    </div>
+
+    <div class="card" id="alertFormSection" style="display:none;">
+        <h2>📌 알림 설정</h2>
+        <p id="selectedBidInfo"></p>
+        <input type="hidden" id="selectedPbctNo">
+        <div style="margin: 20px 0;">
+            <label>알림 타입:</label>
+            <select id="alertType" style="width: 200px;" onchange="toggleAlertOptions()">
+                <option value="DEADLINE">마감 알림</option>
+                <option value="PRICE">가격 변동 알림</option>
+            </select>
+        </div>
+        <div id="deadlineOption" style="margin: 20px 0;">
+            <label>며칠 전 알림:</label>
+            <input type="number" id="daysBefore" value="3" min="1" max="30" style="width: 100px;">일 전
+        </div>
+        <div id="priceOption" style="margin: 20px 0; display: none;">
+            <label>목표 가격 (원):</label>
+            <input type="number" id="targetPrice" placeholder="예: 10000000" min="0" style="width: 200px;">
+            <small>이 가격 이하로 떨어지면 알림</small>
+        </div>
+        <button class="btn" onclick="createAlert()">알림 설정 추가</button>
+        <button class="btn" onclick="cancelSelection()" style="background: #95a5a6;">취소</button>
+    </div>
+
+    <div class="card" id="alertListSection" style="display:none;">
+        <h2>⚙️ 내 알림 설정 목록</h2>
+        <button class="btn" onclick="loadAlerts()">새로고침</button>
+        <div id="alertList"></div>
+    </div>
+
+    <div class="card" id="notificationSection" style="display:none;">
+        <h2>내 알림 <span id="unreadCount"></span></h2>
+        <button class="btn" onclick="loadNotifications()">새로고침</button>
+        <button class="btn" onclick="markAllRead()">모두 읽음</button>
+        <button class="btn btn-danger" onclick="deleteAllNotifications()">모두 삭제</button>
+        <button class="btn" onclick="createTestNotification()">테스트 알림</button>
+        <div id="notificationList"></div>
+    </div>
+</div>
+
+<script>
+    let token = localStorage.getItem('token');
+    let username = localStorage.getItem('username');
+
+    function checkLogin() {
+        if (!token || !username) {
+            alert('로그인이 필요합니다.');
+            location.href = '/login';
+            return false;
+        }
+        return true;
+    }
+
+    function initPage() {
+        if (!checkLogin()) return;
+        
+        document.getElementById('welcomeCard').style.display = 'block';
+        document.getElementById('welcomeMessage').textContent = `${username} 회원님, 알림 설정 화면입니다.`;
+        document.getElementById('bidListSection').style.display = 'block';
+        document.getElementById('alertListSection').style.display = 'block';
+        document.getElementById('notificationSection').style.display = 'block';
+        
+        loadNotifications();
+        loadAlerts();
+        searchBids();
+    }
+
+    function searchBids() {
+        const keyword = document.getElementById('searchKeyword').value;
+        const url = keyword ? 
+            `/api/bids-from-db?numOfRows=20&cltrNm=${keyword}` : 
+            `/api/bids-from-db?numOfRows=20`;
+        
+        fetch(url)
+            .then(res => res.json())
+            .then(data => {
+                const list = document.getElementById('bidList');
+                if (data.length === 0) {
+                    list.innerHTML = '<p>검색 결과가 없습니다.</p>';
+                    return;
+                }
+                list.innerHTML = data.map(bid => `
+                    <div class="bid-item" onclick="selectBid('${bid.pbctNo}', '${bid.cltrNm}')">
+                        <strong>🏠 ${bid.cltrNm || '물건명 없음'}</strong><br>
+                        <small>공고번호: ${bid.pbctNo}</small><br>
+                        <small>최저가: ${(bid.minBidPrc || 0).toLocaleString()}원</small><br>
+                        <small>마감: ${bid.pbctEndDt || '미정'}</small>
+                    </div>
+                `).join('');
+            })
+            .catch(err => alert('입찰 목록 조회 실패'));
+    }
+
+    function selectBid(pbctNo, cltrNm) {
+        document.getElementById('selectedPbctNo').value = pbctNo;
+        document.getElementById('selectedBidInfo').innerHTML = `
+            <strong>선택한 물건:</strong> ${cltrNm}<br>
+            <strong>공고번호:</strong> ${pbctNo}
+        `;
+        document.getElementById('alertFormSection').style.display = 'block';
+        document.getElementById('alertFormSection').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function cancelSelection() {
+        document.getElementById('alertFormSection').style.display = 'none';
+        document.getElementById('selectedPbctNo').value = '';
+    }
+
+    function toggleAlertOptions() {
+        const alertType = document.getElementById('alertType').value;
+        if (alertType === 'DEADLINE') {
+            document.getElementById('deadlineOption').style.display = 'block';
+            document.getElementById('priceOption').style.display = 'none';
+        } else if (alertType === 'PRICE') {
+            document.getElementById('deadlineOption').style.display = 'none';
+            document.getElementById('priceOption').style.display = 'block';
+        }
+    }
+
+    function createAlert() {
+        const pbctNo = document.getElementById('selectedPbctNo').value;
+        if (!pbctNo) {
+            alert('입찰 물건을 먼저 선택해주세요.');
+            return;
+        }
+        
+        const alertType = document.getElementById('alertType').value;
+        const alertData = {
+            pbctNo: pbctNo,
+            alertType: alertType,
+            isActive: true
+        };
+        
+        if (alertType === 'DEADLINE') {
+            alertData.alertDaysBefore = document.getElementById('daysBefore').value;
+        } else if (alertType === 'PRICE') {
+            const targetPrice = document.getElementById('targetPrice').value;
+            if (!targetPrice || targetPrice <= 0) {
+                alert('목표 가격을 입력해주세요.');
+                return;
+            }
+            alertData.targetPrice = targetPrice;
+        }
+        
+        fetch('/api/notifications/alerts', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + token
+            },
+            body: JSON.stringify(alertData)
+        })
+        .then(res => res.json())
+        .then(data => {
+            alert(data.message);
+            cancelSelection();
+            loadAlerts();
+        });
+    }
+
+    function loadNotifications() {
+        fetch('/api/notifications', {
+            headers: {'Authorization': 'Bearer ' + token}
+        })
+            .then(res => res.json())
+            .then(data => {
+                const list = document.getElementById('notificationList');
+                if (data.length === 0) {
+                    list.innerHTML = '<p>알림이 없습니다.</p>';
+                    return;
+                }
+                list.innerHTML = data.map(n => `
+                    <div class="notification ${n.isRead ? '' : 'unread'}">
+                        <strong>${n.notificationType}</strong>: ${n.message}
+                        <br><small>${n.createdAt}</small><br>
+                        ${!n.isRead ? `<button class="btn" onclick="markRead(${n.notificationId})">읽음</button>` : ''}
+                        <button class="btn btn-danger" onclick="deleteNotification(${n.notificationId})">삭제</button>
+                    </div>
+                `).join('');
+            });
+
+        fetch('/api/notifications/unread', {
+            headers: {'Authorization': 'Bearer ' + token}
+        })
+            .then(res => res.json())
+            .then(data => {
+                document.getElementById('unreadCount').textContent = `(${data.count}개)`;
+            });
+    }
+
+    function markRead(id) {
+        fetch(`/api/notifications/${id}/read`, {
+            method: 'PUT',
+            headers: {'Authorization': 'Bearer ' + token}
+        })
+            .then(() => loadNotifications());
+    }
+
+    function markAllRead() {
+        fetch('/api/notifications/read-all', {
+            method: 'PUT',
+            headers: {'Authorization': 'Bearer ' + token}
+        })
+            .then(() => loadNotifications());
+    }
+
+    function createTestNotification() {
+        fetch('/api/notifications/test', {
+            headers: {'Authorization': 'Bearer ' + token}
+        })
+            .then(() => {
+                alert('테스트 알림 생성!');
+                loadNotifications();
+            });
+    }
+
+    function loadAlerts() {
+        fetch('/api/notifications/alerts', {
+            headers: {'Authorization': 'Bearer ' + token}
+        })
+        .then(res => res.json())
+        .then(data => {
+            const list = document.getElementById('alertList');
+            if (data.length === 0) {
+                list.innerHTML = '<p>설정된 알림이 없습니다.</p>';
+                return;
+            }
+            list.innerHTML = data.map(alert => {
+                let detailInfo = '';
+                if (alert.alertType === 'DEADLINE') {
+                    detailInfo = `<strong>며칠 전:</strong> ${alert.alertDaysBefore}일`;
+                } else if (alert.alertType === 'PRICE') {
+                    detailInfo = `<strong>목표 가격:</strong> ${(alert.targetPrice || 0).toLocaleString()}원`;
+                }
+                return `
+                    <div class="alert-item ${alert.isActive ? '' : 'inactive'}">
+                        <strong>공고번호:</strong> ${alert.pbctNo || '전체'}<br>
+                        <strong>알림 타입:</strong> ${alert.alertType === 'DEADLINE' ? '마감 알림' : '가격 변동 알림'}<br>
+                        ${detailInfo}<br>
+                        <strong>상태:</strong> ${alert.isActive ? '활성' : '비활성'}<br>
+                        <small>생성일: ${alert.createdAt}</small><br>
+                        <button class="btn btn-danger" onclick="deleteAlert(${alert.alertId})">삭제</button>
+                    </div>
+                `;
+            }).join('');
+        });
+    }
+
+    function deleteAlert(alertId) {
+        if (!confirm('이 알림 설정을 삭제하시겠습니까?')) return;
+        
+        fetch(`/api/notifications/alerts/${alertId}`, {
+            method: 'DELETE',
+            headers: {'Authorization': 'Bearer ' + token}
+        })
+        .then(res => res.json())
+        .then(data => {
+            alert(data.message);
+            loadAlerts();
+        });
+    }
+
+    function deleteNotification(notificationId) {
+        if (!confirm('이 알림을 삭제하시겠습니까?')) return;
+        
+        fetch(`/api/notifications/${notificationId}`, {
+            method: 'DELETE',
+            headers: {'Authorization': 'Bearer ' + token}
+        })
+        .then(res => res.json())
+        .then(data => {
+            alert(data.message);
+            loadNotifications();
+        });
+    }
+
+    function deleteAllNotifications() {
+        if (!confirm('모든 알림을 삭제하시겠습니까?')) return;
+        
+        fetch('/api/notifications/delete-all', {
+            method: 'DELETE',
+            headers: {'Authorization': 'Bearer ' + token}
+        })
+        .then(res => res.json())
+        .then(data => {
+            alert(data.message);
+            loadNotifications();
+        });
+    }
+
+    initPage();
+</script>
+</body>
+</html>

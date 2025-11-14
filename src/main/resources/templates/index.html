@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KAMCO 입찰 시스템</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f5f5f5; }
+        .header { background: #2c3e50; color: white; padding: 20px; text-align: center; }
+        .container { max-width: 1200px; margin: 30px auto; padding: 0 20px; }
+        .card { background: white; border-radius: 8px; padding: 30px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .menu-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; }
+        .menu-item { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; border-radius: 8px; text-align: center; cursor: pointer; transition: transform 0.2s; }
+        .menu-item:hover { transform: translateY(-5px); }
+        .menu-item h3 { margin-bottom: 10px; }
+        .btn { background: #3498db; color: white; border: none; padding: 12px 24px; border-radius: 5px; cursor: pointer; font-size: 16px; margin: 5px; }
+        .btn:hover { background: #2980b9; }
+        .btn-success { background: #27ae60; }
+        .btn-success:hover { background: #229954; }
+        input { padding: 10px; margin: 5px; border: 1px solid #ddd; border-radius: 4px; width: 200px; }
+        .user-info { float: right; color: white; }
+        .auth-section { display: inline-block; }
+    </style>
+</head>
+<body>
+<div class="header">
+    <h1>🏛️ KAMCO 입찰 관리 시스템</h1>
+    <p>한국자산관리공사 입찰 정보 통합 관리</p>
+    <div class="user-info" id="userInfo"></div>
+</div>
+
+<div class="container">
+    <div class="card" id="authCard">
+        <h2>🔐 로그인 / 회원가입</h2>
+        <div class="auth-section">
+            <button class="btn" onclick="location.href='/login'">로그인</button>
+            <button class="btn btn-success" onclick="location.href='/register'">회원가입</button>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>📋 주요 기능</h2>
+        <div class="menu-grid" style="margin-top: 20px;">
+            <div class="menu-item" onclick="location.href='/notifications'">
+                <h3>🔔 알림 관리</h3>
+                <p>입찰 알림 설정 및 확인</p>
+            </div>
+            <div class="menu-item" onclick="location.href='/swagger-ui.html'">
+                <h3>📡 API 문서</h3>
+                <p>Swagger API 테스트</p>
+            </div>
+            <div class="menu-item" onclick="window.open('/api/data-status', '_blank')">
+                <h3>📊 데이터 현황</h3>
+                <p>DB 저장 데이터 확인</p>
+            </div>
+            <div class="menu-item" onclick="syncData()">
+                <h3>🔄 데이터 동기화</h3>
+                <p>KAMCO API 데이터 가져오기</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>🚀 빠른 시작</h2>
+        <ol style="line-height: 2; margin-left: 20px; margin-top: 10px;">
+            <li>회원가입 또는 로그인</li>
+            <li>입찰 정보 조회</li>
+            <li>관심 물건에 알림 설정</li>
+            <li>입찰 신청</li>
+        </ol>
+    </div>
+</div>
+
+<script>
+    let token = localStorage.getItem('token');
+    let username = localStorage.getItem('username');
+
+    function updateUI() {
+        if (token && username) {
+            document.getElementById('authCard').style.display = 'none';
+            document.getElementById('userInfo').innerHTML = `
+                <span>👤 ${username}님 환영합니다!</span>
+                <button class="btn" onclick="logout()" style="margin-left: 10px;">로그아웃</button>
+            `;
+        } else {
+            document.getElementById('authCard').style.display = 'block';
+            document.getElementById('userInfo').innerHTML = '';
+        }
+    }
+
+    function login() {
+        fetch('/api/auth/login', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                username: document.getElementById('username').value,
+                password: document.getElementById('password').value
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.token) {
+                token = data.token;
+                username = data.username;
+                localStorage.setItem('token', token);
+                localStorage.setItem('username', username);
+                alert('로그인 성공!');
+                updateUI();
+            } else {
+                alert('로그인 실패: ' + data.error);
+            }
+        });
+    }
+
+    function register() {
+        fetch('/api/auth/register', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                username: document.getElementById('username').value,
+                password: document.getElementById('password').value
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                alert('회원가입 성공! 로그인해주세요.');
+            } else {
+                alert('회원가입 실패: ' + data.error);
+            }
+        });
+    }
+
+    function logout() {
+        localStorage.removeItem('token');
+        localStorage.removeItem('username');
+        token = null;
+        username = null;
+        alert('로그아웃되었습니다.');
+        updateUI();
+    }
+
+    function syncData() {
+        if (confirm('데이터 동기화를 시작하시겠습니까?')) {
+            fetch('/api/turbo-sync')
+                .then(res => res.json())
+                .then(data => alert('동기화 완료: ' + data.totalSaved + '개'))
+                .catch(err => alert('오류: ' + err));
+        }
+    }
+
+    updateUI();
+</script>
+</body>
+</html>
