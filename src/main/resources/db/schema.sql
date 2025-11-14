@@ -4,51 +4,58 @@ CREATE DATABASE IF NOT EXISTS onbid CHARACTER SET utf8mb4 COLLATE utf8mb4_unicod
 USE onbid;
 
 -- 사용자 테이블
-CREATE TABLE IF NOT EXISTS users (
-    user_id BIGINT AUTO_INCREMENT PRIMARY KEY,
-    username VARCHAR(50) NOT NULL UNIQUE,
-    password VARCHAR(255) NOT NULL,
-    email VARCHAR(100),
-    phone VARCHAR(20),
+CREATE TABLE IF NOT EXISTS users
+(
+    user_id    BIGINT AUTO_INCREMENT PRIMARY KEY,
+    username   VARCHAR(50)  NOT NULL UNIQUE,
+    password   VARCHAR(255) NOT NULL,
+    email      VARCHAR(100),
+    phone      VARCHAR(20),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     INDEX idx_username (username)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4
+  COLLATE = utf8mb4_unicode_ci;
 
 -- 입찰 테이블
-CREATE TABLE IF NOT EXISTS bids (
-    bid_id BIGINT AUTO_INCREMENT PRIMARY KEY,
-    user_id BIGINT NOT NULL,
-    pblnc_no VARCHAR(50) NOT NULL,
-    pblnc_nm VARCHAR(500),
-    bid_amount BIGINT NOT NULL,
-    bid_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+CREATE TABLE IF NOT EXISTS bids
+(
+    bid_id     BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_id    BIGINT      NOT NULL,
+    pblnc_no   VARCHAR(50) NOT NULL,
+    pblnc_nm   VARCHAR(500),
+    bid_amount BIGINT      NOT NULL,
+    bid_date   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users (user_id) ON DELETE CASCADE,
     INDEX idx_user_id (user_id),
     INDEX idx_pblnc_no (pblnc_no)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4
+  COLLATE = utf8mb4_unicode_ci;
 
 -- KAMCO 입찰 정보 테이블
-CREATE TABLE IF NOT EXISTS kamco_bids (
-    id BIGINT AUTO_INCREMENT PRIMARY KEY,
-    pbct_no VARCHAR(50) NOT NULL UNIQUE,
-    cltr_nm VARCHAR(500),
-    sido VARCHAR(50),
-    sgk VARCHAR(50),
-    emd VARCHAR(50),
-    min_bid_prc BIGINT,
+CREATE TABLE IF NOT EXISTS kamco_bids
+(
+    id                BIGINT AUTO_INCREMENT PRIMARY KEY,
+    pbct_no           VARCHAR(50) NOT NULL UNIQUE,
+    cltr_nm           VARCHAR(500),
+    sido              VARCHAR(50),
+    sgk               VARCHAR(50),
+    emd               VARCHAR(50),
+    min_bid_prc       BIGINT,
     apsl_ases_avg_amt BIGINT,
-    pbct_bgn_dt VARCHAR(20),
-    pbct_end_dt VARCHAR(20),
-    dpsl_mtd_cd VARCHAR(10),
-    ctgr_hirk_id VARCHAR(20),
-    ctgr_hirk_id_mid VARCHAR(20),
-    goods_price_from BIGINT,
-    goods_price_to BIGINT,
-    open_price_from BIGINT,
-    open_price_to BIGINT,
-    cltr_mnmt_no VARCHAR(50),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    pbct_bgn_dt       VARCHAR(20),
+    pbct_end_dt       VARCHAR(20),
+    dpsl_mtd_cd       VARCHAR(10),
+    ctgr_hirk_id      VARCHAR(20),
+    ctgr_hirk_id_mid  VARCHAR(20),
+    goods_price_from  BIGINT,
+    goods_price_to    BIGINT,
+    open_price_from   BIGINT,
+    open_price_to     BIGINT,
+    cltr_mnmt_no      VARCHAR(50),
+    created_at        TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at        TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     INDEX idx_pbct_no (pbct_no),
     INDEX idx_sido (sido),
     INDEX idx_sgk (sgk),
@@ -57,4 +64,42 @@ CREATE TABLE IF NOT EXISTS kamco_bids (
     INDEX idx_cltr_nm (cltr_nm(100)),
     INDEX idx_pbct_dates (pbct_bgn_dt, pbct_end_dt),
     INDEX idx_price_range (min_bid_prc, apsl_ases_avg_amt)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4
+  COLLATE = utf8mb4_unicode_ci;
+
+-- 알림 설정 테이블
+CREATE TABLE IF NOT EXISTS user_alerts
+(
+    alert_id          BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_id           BIGINT      NOT NULL,
+    pbct_no           VARCHAR(50),
+    alert_type        VARCHAR(20) NOT NULL, -- 'DEADLINE', 'PRICE', 'NEW'
+    alert_days_before INT       DEFAULT 1,
+    is_active         BOOLEAN   DEFAULT TRUE,
+    created_at        TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users (user_id) ON DELETE CASCADE,
+    INDEX idx_user_id (user_id),
+    INDEX idx_pbct_no (pbct_no),
+    INDEX idx_is_active (is_active)
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4
+  COLLATE = utf8mb4_unicode_ci;
+
+-- 알림 내역 테이블
+CREATE TABLE IF NOT EXISTS notifications
+(
+    notification_id   BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_id           BIGINT       NOT NULL,
+    pbct_no           VARCHAR(50),
+    notification_type VARCHAR(20)  NOT NULL,
+    message           VARCHAR(500) NOT NULL,
+    is_read           BOOLEAN   DEFAULT FALSE,
+    created_at        TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users (user_id) ON DELETE CASCADE,
+    INDEX idx_user_id (user_id),
+    INDEX idx_is_read (is_read),
+    INDEX idx_created_at (created_at)
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4
+  COLLATE = utf8mb4_unicode_ci;

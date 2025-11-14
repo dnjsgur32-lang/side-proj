@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.ljh.sideproj.mapper.UserAlertMapper">
+   <insert id="insertAlert" parameterType="UserAlert" useGeneratedKeys="true" keyProperty="alertId">
+       INSERT INTO user_alerts (user_id, pbct_no, alert_type, alert_days_before, is_active)
+       VALUES (#{userId}, #{pbctNo}, #{alertType}, #{alertDaysBefore}, #{isActive})
+   </insert>
+
+    <select id="findByUserId" parameterType="long" resultType="UserAlert">
+        SELECT alert_id, user_id, pbct_no, alert_type, alert_days_before, is_active, created_at
+        FROM user_alerts
+        WHERE user_id = #{userId}
+        ORDER BY created_at DESC
+    </select>
+
+    <select id="findById" parameterType="long" resultType="UserAlert">
+        SELECT alert_id, user_id, pbct_no, alert_type, alert_days_before, is_active, created_at
+        FROM user_alerts
+        WHERE alert_id = #{alertId}
+    </select>
+
+    <update id="updateAlert" parameterType="UserAlert">
+        UPDATE user_alerts
+        SET alert_type = #{alertType},
+            alert_days_before = #{alertDaysBefore},
+            is_active = #{isActive}
+        WHERE alert_id = #{alertId}
+    </update>
+
+    <delete id="deleteAlert" parameterType="long">
+        DELETE FROM user_alerts WHERE alert_id = #{alertId}
+    </delete>
+
+    <select id="findActiveAlerts" resultType="UserAlert">
+        SELECT alert_id, user_id, pbct_no, alert_type, alert_days_before, is_active, created_at
+        FROM user_alerts
+        WHERE is_active = TRUE
+    </select>
+
+
+</mapper>
