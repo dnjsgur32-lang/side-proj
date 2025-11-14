@@ -25,4 +25,9 @@ public class HomeController {
     public String login() {
         return "login";
     }
+
+    @GetMapping("/bids")
+    public String bids() {
+        return "bids";
+    }
 }

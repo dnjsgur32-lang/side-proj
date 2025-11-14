@@ -33,36 +33,57 @@ public class DataSyncScheduler {
     
     @Scheduled(cron = "0 0 2 * * *")
     public void autoSyncData() {
-        System.out.println("자동 데이터 수집 시작...");
-        
         try {
+            System.out.println("자동 데이터 수집 시작...");
+            
+            if (serviceKey == null || serviceKey.isEmpty() || baseUrl == null || baseUrl.isEmpty()) {
+                System.err.println("자동 데이터 수집 실패: API 키 또는 URL이 설정되지 않음");
+                return;
+            }
+            
             int totalSaved = 0;
             
             for (int pageNo = 1; pageNo <= 20; pageNo++) {
-                String uri = baseUrl + "?serviceKey=" + serviceKey + "&numOfRows=100&pageNo=" + pageNo;
-                String xmlResponse = webClient.get().uri(uri).retrieve().bodyToMono(String.class).block();
-                
-                int savedCount = parseAndSaveData(xmlResponse);
-                totalSaved += savedCount;
-                
-                if (savedCount == 0) break;
-                
-                System.out.println("페이지 " + pageNo + " 완료: " + savedCount + "개 저장");
+                try {
+                    String uri = baseUrl + "?serviceKey=" + serviceKey + "&numOfRows=100&pageNo=" + pageNo;
+                    String xmlResponse = webClient.get().uri(uri).retrieve().bodyToMono(String.class).block();
+                    
+                    if (xmlResponse == null || xmlResponse.isEmpty()) {
+                        System.out.println("페이지 " + pageNo + ": 빈 응답");
+                        break;
+                    }
+                    
+                    int savedCount = parseAndSaveData(xmlResponse);
+                    totalSaved += savedCount;
+                    
+                    if (savedCount == 0) break;
+                    
+                    System.out.println("페이지 " + pageNo + " 완료: " + savedCount + "개 저장");
+                } catch (Exception e) {
+                    System.err.println("페이지 " + pageNo + " 처리 오류: " + e.getMessage());
+                    continue;
+                }
             }
             
             System.out.println("자동 데이터 수집 완료: 총 " + totalSaved + "개");
         } catch (Exception e) {
             System.err.println("자동 데이터 수집 오류: " + e.getMessage());
+            e.printStackTrace();
         }
     }
     
     private int parseAndSaveData(String xmlResponse) {
         try {
+            if (xmlResponse == null || xmlResponse.isEmpty()) {
+                return 0;
+            }
+            
             DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
             DocumentBuilder builder = factory.newDocumentBuilder();
             Document doc = builder.parse(new ByteArrayInputStream(xmlResponse.getBytes("UTF-8")));
             
             NodeList items = doc.getElementsByTagName("item");
+            int successCount = 0;
             
             for (int i = 0; i < items.getLength(); i++) {
                 Element item = (Element) items.item(i);
@@ -91,13 +112,17 @@ public class DataSyncScheduler {
                     kamcoBid.setCltrMnmtNo(truncateString(getElementText(item, "CLTR_MNMT_NO"), 50));
                     
                     kamcoBidMapper.insertOrUpdateKamcoBid(kamcoBid);
+                    successCount++;
                 } catch (Exception e) {
+                    System.err.println("항목 처리 오류: " + e.getMessage());
                     continue;
                 }
             }
             
-            return items.getLength();
+            return successCount;
         } catch (Exception e) {
+            System.err.println("파싱 오류: " + e.getMessage());
+            e.printStackTrace();
             return 0;
         }
     }

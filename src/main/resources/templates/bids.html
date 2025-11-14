@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>입찰 목록 조회</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f5f5;
+        }
+
+        .header {
+            background: #2c3e50;
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 20px auto;
+            padding: 0 20px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .filter-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        input, select {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            width: 100%;
+        }
+
+        .btn {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        .btn:hover {
+            background: #2980b9;
+        }
+
+        .btn-small {
+            padding: 5px 10px;
+            font-size: 12px;
+            margin: 0 2px;
+        }
+
+        .btn-success {
+            background: #27ae60;
+        }
+
+        .btn-success:hover {
+            background: #229954;
+        }
+
+        .btn-warning {
+            background: #f39c12;
+        }
+
+        .btn-warning:hover {
+            background: #e67e22;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+
+        th {
+            background: #34495e;
+            color: white;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        th:hover {
+            background: #2c3e50;
+        }
+
+        tr:hover {
+            background: #f8f9fa;
+        }
+
+        .price {
+            color: #e74c3c;
+            font-weight: bold;
+        }
+
+        .status {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+
+        .status-active {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-ended {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #7f8c8d;
+        }
+
+        .pagination {
+            display: flex;
+            justify-content: center;
+            gap: 5px;
+            margin-top: 20px;
+        }
+
+        .page-btn {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            background: white;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+
+        .page-btn.active {
+            background: #3498db;
+            color: white;
+            border-color: #3498db;
+        }
+
+        .page-btn:hover:not(.active) {
+            background: #ecf0f1;
+        }
+
+        .back-btn {
+            background: #95a5a6;
+            margin-bottom: 10px;
+        }
+
+        .back-btn:hover {
+            background: #7f8c8d;
+        }
+    </style>
+</head>
+<body>
+<div class="header">
+    <h1>🏛️ 입찰 목록 조회</h1>
+    <p>KAMCO 입찰 정보 검색 및 조회</p>
+</div>
+
+<div class="container">
+    <button class="btn back-btn" onclick="location.href='/'">← 홈으로</button>
+
+    <div class="card">
+        <h2>🔍 검색 필터</h2>
+        <div class="filter-grid">
+            <div>
+                <label>물건명</label>
+                <input type="text" id="searchKeyword" placeholder="물건명 검색">
+            </div>
+            <div>
+                <label>시도</label>
+                <select id="sidoFilter">
+                    <option value="">전체</option>
+                    <option value="서울특별시">서울특별시</option>
+                    <option value="부산광역시">부산광역시</option>
+                    <option value="대구광역시">대구광역시</option>
+                    <option value="인천광역시">인천광역시</option>
+                    <option value="광주광역시">광주광역시</option>
+                    <option value="대전광역시">대전광역시</option>
+                    <option value="울산광역시">울산광역시</option>
+                    <option value="세종특별자치시">세종특별자치시</option>
+                    <option value="경기도">경기도</option>
+                    <option value="강원도">강원도</option>
+                    <option value="충청북도">충청북도</option>
+                    <option value="충청남도">충청남도</option>
+                    <option value="전라북도">전라북도</option>
+                    <option value="전라남도">전라남도</option>
+                    <option value="경상북도">경상북도</option>
+                    <option value="경상남도">경상남도</option>
+                    <option value="제주특별자치도">제주특별자치도</option>
+                </select>
+            </div>
+            <div>
+                <label>시군구</label>
+                <input type="text" id="sgkFilter" placeholder="시군구">
+            </div>
+            <div>
+                <label>최저가 (만원 이상)</label>
+                <input type="number" id="minPrice" placeholder="0">
+            </div>
+            <div>
+                <label>최저가 (만원 이하)</label>
+                <input type="number" id="maxPrice" placeholder="100000">
+            </div>
+        </div>
+        <button class="btn" onclick="searchBids()">🔍 검색</button>
+        <button class="btn btn-warning" onclick="resetFilters()">↺ 초기화</button>
+    </div>
+
+    <div class="card">
+        <h2>📋 입찰 목록 <span id="totalCount" style="color: #3498db;"></span></h2>
+        <div id="loading" class="loading">데이터를 불러오는 중...</div>
+        <div id="bidTableContainer" style="display: none;">
+            <table id="bidTable">
+                <thead>
+                <tr>
+                    <th onclick="sortTable(0)">공고번호</th>
+                    <th onclick="sortTable(1)">물건명</th>
+                    <th onclick="sortTable(2)">지역</th>
+                    <th onclick="sortTable(3)">최저가 (만원)</th>
+                    <th onclick="sortTable(4)">감정가 (만원)</th>
+                    <th onclick="sortTable(5)">입찰시작</th>
+                    <th onclick="sortTable(6)">입찰마감</th>
+                    <th>상태</th>
+                    <th>액션</th>
+                </tr>
+                </thead>
+                <tbody id="bidTableBody">
+                </tbody>
+            </table>
+            <div class="pagination" id="pagination"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let allBids = [];
+    let originalBids = [];
+    let currentPage = 1;
+    let itemsPerPage = 20;
+    let sortColumn = -1;
+    let sortAsc = true;
+
+    async function loadBids() {
+        try {
+            const response = await fetch('/api/bids-from-db?pageNo=1&numOfRows=1000');
+            if (!response.ok) {
+                throw new Error('데이터 로드 실패');
+            }
+            originalBids = await response.json();
+            allBids = [...originalBids];
+            displayBids();
+        } catch (error) {
+            document.getElementById('loading').innerHTML = '❌ 데이터 로드 실패: ' + error.message + '<br><br>먼저 "🔄 데이터 동기화"를 실행해주세요.';
+        }
+    }
+
+    function searchBids() {
+        const keyword = document.getElementById('searchKeyword').value.toLowerCase();
+        const sido = document.getElementById('sidoFilter').value;
+        const sgk = document.getElementById('sgkFilter').value.toLowerCase();
+        const minPrice = parseFloat(document.getElementById('minPrice').value) || 0;
+        const maxPrice = parseFloat(document.getElementById('maxPrice').value) || Infinity;
+
+        allBids = originalBids.filter(bid => {
+            const matchKeyword = !keyword || (bid.cltrNm && bid.cltrNm.toLowerCase().includes(keyword));
+            const matchSido = !sido || bid.sido === sido;
+            const matchSgk = !sgk || (bid.sgk && bid.sgk.toLowerCase().includes(sgk));
+            const bidPrice = (bid.minBidPrc || 0) / 10000;
+            const matchPrice = bidPrice >= minPrice && bidPrice <= maxPrice;
+            return matchKeyword && matchSido && matchSgk && matchPrice;
+        });
+
+        currentPage = 1;
+        displayBids();
+
+        if (allBids.length === 0 && originalBids.length > 0) {
+            alert('검색 결과가 없습니다. 다른 조건으로 검색해보세요.');
+        }
+    }
+
+    function resetFilters() {
+        document.getElementById('searchKeyword').value = '';
+        document.getElementById('sidoFilter').value = '';
+        document.getElementById('sgkFilter').value = '';
+        document.getElementById('minPrice').value = '';
+        document.getElementById('maxPrice').value = '';
+        allBids = [...originalBids];
+        currentPage = 1;
+        displayBids();
+    }
+
+    function displayBids() {
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('bidTableContainer').style.display = 'block';
+
+        if (allBids.length === 0) {
+            document.getElementById('bidTableContainer').style.display = 'none';
+            document.getElementById('loading').innerHTML = `
+            <div style="text-align: center; padding: 60px;">
+            <div style="font-size: 80px; margin-bottom: 10px;">📭</div>
+            <h3 style="color: #7f8c8d; margin-bottom: 10px;">입찰 데이터가 없습니다.</h3>
+            <p style="color: #95a5a6;">홈페이지에서 "🔄 데이터 동기화"를 먼저 실행해주세요.</p>
+                <button class="btn" onclick="location.href='/'" style="margin-top: 20px;">홈으로 가기</button>
+        </div>
+    `;
+            document.getElementById('loading').style.display = 'block';
+            return;
+        }
+
+        const start = (currentPage - 1) * itemsPerPage;
+        const end = start + itemsPerPage;
+        const paginatedBids = allBids.slice(start, end);
+
+        document.getElementById('totalCount').textContent = `(총 ${allBids.length}건)`;
+
+        const tbody = document.getElementById('bidTableBody');
+        tbody.innerHTML = '';
+
+        paginatedBids.forEach(bid => {
+            const row = tbody.insertRow();
+            const today = new Date().toISOString().slice(0, 8).replace(/-/g, '');
+            const isActive = bid.pbctEndDt && bid.pbctEndDt >= today;
+
+            row.innerHTML = `
+                <td>${bid.pbctNo || '-'}</td>
+                <td>${bid.cltrNm || '-'}</td>
+                <td>${bid.sido || ''} ${bid.sgk || ''}</td>
+                <td class="price">${formatPrice(bid.minBidPrc)}</td>
+                <td class="price">${formatPrice(bid.apslAsesAvgAmt)}</td>
+                <td>${formatDate(bid.pbctBgnDt)}</td>
+                <td>${formatDate(bid.pbctEndDt)}</td>
+                <td><span class="status ${isActive ? 'status-active' : 'status-ended'}">${isActive ? '진행중' : '마감'}</span></td>
+                <td>
+                    <button class="btn btn-small" onclick="viewDetail('${bid.pbctNo}')">상세</button>
+                    <button class="btn btn-small btn-success" onclick="addBookmark('${bid.pbctNo}')">★</button>
+                </td>
+            `;
+        });
+
+        renderPagination();
+    }
+
+    function renderPagination() {
+        const totalPages = Math.ceil(allBids.length / itemsPerPage);
+        const pagination = document.getElementById('pagination');
+        pagination.innerHTML = '';
+
+        for (let i = 1; i <= totalPages; i++) {
+            const btn = document.createElement('button');
+            btn.className = 'page-btn' + (i === currentPage ? ' active' : '');
+            btn.textContent = i;
+            btn.onclick = () => {
+                currentPage = i;
+                displayBids();
+            };
+            pagination.appendChild(btn);
+        }
+    }
+
+    function sortTable(column) {
+        if (sortColumn === column) {
+            sortAsc = !sortAsc;
+        } else {
+            sortColumn = column;
+            sortAsc = true;
+        }
+
+        const keys = ['pbctNo', 'cltrNm', 'sido', 'minBidPrc', 'apslAsesAvgAmt', 'pbctBgnDt', 'pbctEndDt'];
+        const key = keys[column];
+
+        allBids.sort((a, b) => {
+            let valA = a[key] || '';
+            let valB = b[key] || '';
+
+            if (typeof valA === 'number') {
+                return sortAsc ? valA - valB : valB - valA;
+            }
+
+            return sortAsc ? valA.localeCompare(valB) : valB.localeCompare(valA);
+        });
+
+        displayBids();
+    }
+
+    function formatPrice(price) {
+        if (!price) return '-';
+        return (price / 10000).toLocaleString() + '만원';
+    }
+
+    function formatDate(dateStr) {
+        if (!dateStr || dateStr.length !== 8) return '-';
+        return `${dateStr.slice(0, 4)}-${dateStr.slice(4, 6)}-${dateStr.slice(6, 8)}`;
+    }
+
+    function viewDetail(pbctNo) {
+        alert('상세 페이지 준비중: ' + pbctNo);
+        // TODO: 상세 페이지 구현
+    }
+
+    function addBookmark(pbctNo) {
+        const token = localStorage.getItem('token');
+        if (!token) {
+            alert('로그인이 필요합니다.');
+            location.href = '/login';
+            return;
+        }
+        alert('북마크 기능 준비중: ' + pbctNo);
+        // TODO: 북마크 API 구현
+    }
+
+    loadBids();
+</script>
+</body>
+</html>
