@@ -64,6 +64,7 @@ CREATE TABLE IF NOT EXISTS kamco_bids
     INDEX idx_cltr_nm (cltr_nm(100)),
     INDEX idx_pbct_dates (pbct_bgn_dt, pbct_end_dt),
     INDEX idx_price_range (min_bid_prc, apsl_ases_avg_amt)
+<<<<<<< Updated upstream
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4
   COLLATE = utf8mb4_unicode_ci;
@@ -104,3 +105,38 @@ CREATE TABLE IF NOT EXISTS notifications
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4
   COLLATE = utf8mb4_unicode_ci;
+=======
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 알림 설정 테이블
+CREATE TABLE IF NOT EXISTS user_alerts (
+    alert_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_id BIGINT NOT NULL,
+    pbct_no VARCHAR(50),
+    alert_type VARCHAR(20) NOT NULL, -- 'DEADLINE', 'PRICE', 'NEW'
+    alert_days_before INT DEFAULT 1,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+    INDEX idx_user_id (user_id),
+    INDEX idx_pbct_no (pbct_no),
+    INDEX idx_is_active (is_active)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 알림 내역 테이블
+CREATE TABLE IF NOT EXISTS notifications (
+    notification_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_id BIGINT NOT NULL,
+    pbct_no VARCHAR(50),
+    notification_type VARCHAR(20) NOT NULL,
+    message VARCHAR(500) NOT NULL,
+    is_read BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+    INDEX idx_user_id (user_id),
+    INDEX idx_is_read (is_read),
+    INDEX idx_created_at (created_at)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+show tables
+>>>>>>> Stashed changes
