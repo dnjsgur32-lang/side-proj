@@ -30,4 +30,9 @@ public class HomeController {
     public String bids() {
         return "bids";
     }
+
+    @GetMapping("/bookmarks")
+    public String bookmarks() {
+        return "bookmarks";
+    }
 }

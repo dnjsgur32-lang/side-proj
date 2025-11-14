@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>내 북마크</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f5f5f5; }
+        .header { background: #2c3e50; color: white; padding: 20px; text-align: center; }
+        .container { max-width: 1400px; margin: 20px auto; padding: 0 20px; }
+        .card { background: white; border-radius: 8px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .btn { background: #3498db; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; }
+        .btn:hover { background: #2980b9; }
+        .btn-small { padding: 5px 10px; font-size: 12px; margin: 0 2px; }
+        .btn-danger { background: #e74c3c; }
+        .btn-danger:hover { background: #c0392b; }
+        .back-btn { background: #95a5a6; margin-bottom: 10px; }
+        .back-btn:hover { background: #7f8c8d; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
+        th { background: #34495e; color: white; }
+        tr:hover { background: #f8f9fa; }
+        .price { color: #e74c3c; font-weight: bold; }
+        .loading { text-align: center; padding: 40px; color: #7f8c8d; }
+        .empty { text-align: center; padding: 60px; }
+        .empty-icon { font-size: 80px; margin-bottom: 20px; }
+    </style>
+</head>
+<body>
+<div class="header">
+    <h1>⭐ 내 북마크</h1>
+    <p>관심 입찰 목록</p>
+</div>
+
+<div class="container">
+    <button class="btn back-btn" onclick="location.href='/'">← 홈으로</button>
+
+    <div class="card">
+        <h2>📋 북마크 목록 <span id="totalCount" style="color: #3498db;"></span></h2>
+        <div id="loading" class="loading">데이터를 불러오는 중...</div>
+        <div id="bookmarkTableContainer" style="display: none;">
+            <table>
+                <thead>
+                <tr>
+                    <th>공고번호</th>
+                    <th>물건명</th>
+                    <th>지역</th>
+                    <th>최저가 (만원)</th>
+                    <th>감정가 (만원)</th>
+                    <th>입찰마감</th>
+                    <th>액션</th>
+                </tr>
+                </thead>
+                <tbody id="bookmarkTableBody">
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    const token = localStorage.getItem('token');
+
+    if (!token) {
+        alert('로그인이 필요합니다.');
+        location.href = '/login';
+    }
+
+    async function loadBookmarks() {
+        try {
+            const response = await fetch('/api/bookmarks', {
+                headers: { 'Authorization': 'Bearer ' + token }
+            });
+
+            if (!response.ok) {
+                throw new Error('북마크 로드 실패');
+            }
+
+            const bookmarks = await response.json();
+
+            if (bookmarks.length === 0) {
+                showEmpty();
+                return;
+            }
+
+            await loadBidDetails(bookmarks);
+        } catch (error) {
+            document.getElementById('loading').innerHTML = '❌ 오류: ' + error.message;
+        }
+    }
+
+    async function loadBidDetails(bookmarks) {
+        try {
+            const response = await fetch('/api/bids-from-db?pageNo=1&numOfRows=1000');
+            const allBids = await response.json();
+
+            const bookmarkedBids = bookmarks.map(bookmark => {
+                return allBids.find(bid => bid.pbctNo === bookmark.pbctNo);
+            }).filter(bid => bid != null);
+
+            displayBookmarks(bookmarkedBids);
+        } catch (error) {
+            document.getElementById('loading').innerHTML = '❌ 입찰 정보 로드 실패';
+        }
+    }
+
+    function displayBookmarks(bids) {
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('bookmarkTableContainer').style.display = 'block';
+        document.getElementById('totalCount').textContent = `(총 ${bids.length}건)`;
+
+        const tbody = document.getElementById('bookmarkTableBody');
+        tbody.innerHTML = '';
+
+        bids.forEach(bid => {
+            const row = tbody.insertRow();
+            row.innerHTML = `
+                <td>${bid.pbctNo || '-'}</td>
+                <td>${bid.cltrNm || '-'}</td>
+                <td>${bid.sido || ''} ${bid.sgk || ''}</td>
+                <td class="price">${formatPrice(bid.minBidPrc)}</td>
+                <td class="price">${formatPrice(bid.apslAsesAvgAmt)}</td>
+                <td>${formatDate(bid.pbctEndDt)}</td>
+                <td>
+                    <button class="btn btn-small" onclick="viewDetail('${bid.pbctNo}')">상세</button>
+                    <button class="btn btn-small btn-danger" onclick="removeBookmark('${bid.pbctNo}')">삭제</button>
+                </td>
+            `;
+        });
+    }
+
+    function showEmpty() {
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('bookmarkTableContainer').innerHTML = `
+            <div class="empty">
+                <div class="empty-icon">📭</div>
+                <h3 style="color: #7f8c8d; margin-bottom: 10px;">북마크가 비어있습니다</h3>
+                <p style="color: #95a5a6;">입찰 목록에서 관심 물건을 북마크해보세요!</p>
+                <button class="btn" onclick="location.href='/bids'" style="margin-top: 20px;">입찰 목록 보기</button>
+            </div>
+        `;
+        document.getElementById('bookmarkTableContainer').style.display = 'block';
+    }
+
+    async function removeBookmark(pbctNo) {
+        if (!confirm('북마크를 삭제하시겠습니까?')) return;
+
+        try {
+            const response = await fetch(`/api/bookmarks/${pbctNo}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': 'Bearer ' + token }
+            });
+
+            if (response.ok) {
+                alert('✅ 북마크가 삭제되었습니다.');
+                location.reload();
+            } else {
+                alert('❌ 삭제 실패');
+            }
+        } catch (error) {
+            alert('오류: ' + error.message);
+        }
+    }
+
+    function viewDetail(pbctNo) {
+        alert('상세 페이지 준비중: ' + pbctNo);
+    }
+
+    function formatPrice(price) {
+        if (!price) return '-';
+        return (price / 10000).toLocaleString() + '만원';
+    }
+
+    function formatDate(dateStr) {
+        if (!dateStr || dateStr.length !== 8) return '-';
+        return `${dateStr.slice(0,4)}-${dateStr.slice(4,6)}-${dateStr.slice(6,8)}`;
+    }
+
+    loadBookmarks();
+</script>
+</body>
+</html>

@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.ljh.sideproj.mapper.BookmarkMapper">
+    <insert id="insertBookmark" parameterType="Bookmark" useGeneratedKeys="true" keyProperty="bookmarkId">
+        INSERT INTO user_bookmarks (user_id, pbct_no)
+        VALUES (#{userId}, #{pbctNo})
+    </insert>
+
+    <select id="findByUserId" parameterType="long" resultType="Bookmark">
+        SELECT bookmark_id, user_id, pbct_no, created_at
+        FROM user_bookmarks
+        WHERE user_id = #{userId}
+        ORDER BY created_at DESC
+    </select>
+
+    <select id="findByUserIdAndPbctNo" resultType="Bookmark">
+        SELECT bookmark_id, user_id, pbct_no, created_at
+        FROM user_bookmarks
+        WHERE user_id = #{userId} AND pbct_no = #{pbctNo}
+    </select>
+
+    <delete id="deleteBookmark" parameterType="long">
+        DELETE FROM user_bookmarks WHERE bookmark_id = #{bookmarkId}
+    </delete>
+
+    <delete id="deleteByUserIdAndPbctNo">
+        DELETE FROM user_bookmarks WHERE user_id = #{userId} AND pbct_no = #{pbctNo}
+    </delete>
+</mapper>
