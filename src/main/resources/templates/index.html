@@ -97,6 +97,8 @@
         }
     }
 
+    // (참고) 로그인/회원가입 API는 나중에 컨트롤러 코드 기반(code)으로 바꾸면,
+    // 여기에서도 code → 한글 메시지 매핑으로 변경해주면 됨.
     function login() {
         fetch('/api/auth/login', {
             method: 'POST',
@@ -106,19 +108,20 @@
                 password: document.getElementById('password').value
             })
         })
-        .then(res => res.json())
-        .then(data => {
-            if (data.token) {
-                token = data.token;
-                username = data.username;
-                localStorage.setItem('token', token);
-                localStorage.setItem('username', username);
-                alert('로그인 성공!');
-                updateUI();
-            } else {
-                alert('로그인 실패: ' + data.error);
-            }
-        });
+            .then(res => res.json())
+            .then(data => {
+                if (data.token) {
+                    token = data.token;
+                    username = data.username;
+                    localStorage.setItem('token', token);
+                    localStorage.setItem('username', username);
+                    alert('로그인 성공!');
+                    updateUI();
+                } else {
+                    // 여기도 나중에 data.code 기준으로 매핑해도 됨
+                    alert('로그인 실패: ' + (data.error || '잠시 후 다시 시도해주세요.'));
+                }
+            });
     }
 
     function register() {
@@ -130,14 +133,14 @@
                 password: document.getElementById('password').value
             })
         })
-        .then(res => res.json())
-        .then(data => {
-            if (data.success) {
-                alert('회원가입 성공! 로그인해주세요.');
-            } else {
-                alert('회원가입 실패: ' + data.error);
-            }
-        });
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    alert('회원가입 성공! 로그인해주세요.');
+                } else {
+                    alert('회원가입 실패: ' + (data.error || '잠시 후 다시 시도해주세요.'));
+                }
+            });
     }
 
     function logout() {
@@ -147,6 +150,22 @@
         username = null;
         alert('로그아웃되었습니다.');
         updateUI();
+    }
+
+    // ✅ turbo-sync 응답 code → 한글 메시지 매핑
+    function getSyncMessageByCode(code, data) {
+        switch (code) {
+            case 'TURBO_SYNC_DONE':
+                return `✅ 동기화 완료!\n\n총 ${data.totalSaved ?? 0}개의 데이터가 저장되었습니다.`;
+            case 'TURBO_SYNC_ERROR':
+                return `❌ 동기화 중 오류가 발생했습니다.\n\n상세: ${data.detail || '잠시 후 다시 시도해주세요.'}`;
+            case 'SIMPLE_SYNC_ERROR':
+                return `❌ 간단 동기화 중 오류가 발생했습니다.\n\n상세: ${data.detail || '잠시 후 다시 시도해주세요.'}`;
+            case 'API_ERROR':
+                return `❌ API 호출 중 오류가 발생했습니다.\n\n상세: ${data.detail || '잠시 후 다시 시도해주세요.'}`;
+            default:
+                return '❌ 알 수 없는 응답입니다. 잠시 후 다시 시도해주세요.';
+        }
     }
 
     function syncData() {
@@ -169,34 +188,51 @@
                 </div>
             `;
             document.body.appendChild(loadingDiv);
-            
+
             // 가짜 진행률 애니메이션
             let progress = 0;
             const progressInterval = setInterval(() => {
                 if (progress < 90) {
                     progress += Math.random() * 10;
                     if (progress > 90) progress = 90;
-                    document.getElementById('progressBar').style.width = progress + '%';
-                    document.getElementById('progressText').textContent = Math.floor(progress) + '%';
+                    const bar = document.getElementById('progressBar');
+                    const text = document.getElementById('progressText');
+                    if (bar && text) {
+                        bar.style.width = progress + '%';
+                        text.textContent = Math.floor(progress) + '%';
+                    }
                 }
             }, 500);
-            
+
             fetch('/api/turbo-sync')
                 .then(res => res.json())
                 .then(data => {
                     clearInterval(progressInterval);
-                    document.getElementById('progressBar').style.width = '100%';
-                    document.getElementById('progressText').textContent = '100%';
-                    
+                    const bar = document.getElementById('progressBar');
+                    const text = document.getElementById('progressText');
+
+                    if (bar && text) {
+                        bar.style.width = '100%';
+                        text.textContent = '100%';
+                    }
+
                     setTimeout(() => {
-                        document.body.removeChild(loadingDiv);
-                        alert('✅ 동기화 완료!\n\n총 ' + data.totalSaved + '개의 데이터가 저장되었습니다.');
+                        if (document.getElementById('syncLoading')) {
+                            document.body.removeChild(loadingDiv);
+                        }
+
+                        // ✅ 백엔드가 내려주는 code를 기준으로 한글 메시지 선택
+                        const code = data.code || (data.success ? 'TURBO_SYNC_DONE' : 'TURBO_SYNC_ERROR');
+                        const msg = getSyncMessageByCode(code, data);
+                        alert(msg);
                     }, 500);
                 })
                 .catch(err => {
                     clearInterval(progressInterval);
-                    document.body.removeChild(loadingDiv);
-                    alert('❌ 오류 발생: ' + err);
+                    if (document.getElementById('syncLoading')) {
+                        document.body.removeChild(loadingDiv);
+                    }
+                    alert('❌ 네트워크 오류가 발생했습니다. 잠시 후 다시 시도해주세요.\n\n상세: ' + err);
                 });
         }
     }

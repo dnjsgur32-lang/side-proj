@@ -5,29 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>입찰 목록 조회</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f5f5f5; }
 
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: #f5f5f5;
-        }
-
-        .header {
-            background: #2c3e50;
-            color: white;
-            padding: 20px;
-            text-align: center;
-        }
-
-        .container {
-            max-width: 1400px;
-            margin: 20px auto;
-            padding: 0 20px;
-        }
+        .header { background: #2c3e50; color: white; padding: 20px; text-align: center; }
+        .container { max-width: 1400px; margin: 20px auto; padding: 0 20px; }
 
         .card {
             background: white;
@@ -60,9 +42,7 @@
             cursor: pointer;
         }
 
-        .btn:hover {
-            background: #2980b9;
-        }
+        .btn:hover { background: #2980b9; }
 
         .btn-small {
             padding: 5px 10px;
@@ -70,21 +50,11 @@
             margin: 0 2px;
         }
 
-        .btn-success {
-            background: #27ae60;
-        }
+        .btn-success { background: #27ae60; }
+        .btn-success:hover { background: #229954; }
 
-        .btn-success:hover {
-            background: #229954;
-        }
-
-        .btn-warning {
-            background: #f39c12;
-        }
-
-        .btn-warning:hover {
-            background: #e67e22;
-        }
+        .btn-warning { background: #f39c12; }
+        .btn-warning:hover { background: #e67e22; }
 
         table {
             width: 100%;
@@ -105,13 +75,8 @@
             user-select: none;
         }
 
-        th:hover {
-            background: #2c3e50;
-        }
-
-        tr:hover {
-            background: #f8f9fa;
-        }
+        th:hover { background: #2c3e50; }
+        tr:hover { background: #f8f9fa; }
 
         .price {
             color: #e74c3c;
@@ -191,6 +156,7 @@
                 <label>물건명</label>
                 <input type="text" id="searchKeyword" placeholder="물건명 검색">
             </div>
+
             <div>
                 <label>시도</label>
                 <select id="sidoFilter">
@@ -214,19 +180,23 @@
                     <option value="제주특별자치도">제주특별자치도</option>
                 </select>
             </div>
+
             <div>
                 <label>시군구</label>
                 <input type="text" id="sgkFilter" placeholder="시군구">
             </div>
+
             <div>
                 <label>최저가 (만원 이상)</label>
                 <input type="number" id="minPrice" placeholder="0">
             </div>
+
             <div>
                 <label>최저가 (만원 이하)</label>
                 <input type="number" id="maxPrice" placeholder="100000">
             </div>
         </div>
+
         <button class="btn" onclick="searchBids()">🔍 검색</button>
         <button class="btn btn-warning" onclick="resetFilters()">↺ 초기화</button>
     </div>
@@ -234,6 +204,7 @@
     <div class="card">
         <h2>📋 입찰 목록 <span id="totalCount" style="color: #3498db;"></span></h2>
         <div id="loading" class="loading">데이터를 불러오는 중...</div>
+
         <div id="bidTableContainer" style="display: none;">
             <table id="bidTable">
                 <thead>
@@ -265,6 +236,21 @@
     let sortColumn = -1;
     let sortAsc = true;
 
+    // ✅ 북마크 code → 한글 메시지 매핑
+    function getBookmarkMessageByCode(code) {
+        switch (code) {
+            case 'BOOKMARK_ADD_SUCCESS':
+                return '✅ 북마크에 추가되었습니다!';
+            case 'BOOKMARK_ADD_ERROR':
+                return '❌ 북마크 추가 중 오류가 발생했습니다.';
+            case 'AUTH_REQUIRED':
+                return '🔑 로그인이 필요합니다.';
+            default:
+                return '❌ 북마크 처리 중 알 수 없는 오류가 발생했습니다.';
+        }
+    }
+
+    // 최초 데이터 로딩
     async function loadBids() {
         try {
             const response = await fetch('/api/bids-from-db?pageNo=1&numOfRows=1000');
@@ -275,10 +261,13 @@
             allBids = [...originalBids];
             displayBids();
         } catch (error) {
-            document.getElementById('loading').innerHTML = '❌ 데이터 로드 실패: ' + error.message + '<br><br>먼저 "🔄 데이터 동기화"를 실행해주세요.';
+            document.getElementById('loading').innerHTML =
+                '❌ 데이터 로드 실패: ' + error.message +
+                '<br><br>먼저 "🔄 데이터 동기화"를 실행해주세요.';
         }
     }
 
+    // 검색 필터 적용
     function searchBids() {
         const keyword = document.getElementById('searchKeyword').value.toLowerCase();
         const sido = document.getElementById('sidoFilter').value;
@@ -303,32 +292,39 @@
         }
     }
 
+    // 필터 초기화
     function resetFilters() {
         document.getElementById('searchKeyword').value = '';
         document.getElementById('sidoFilter').value = '';
         document.getElementById('sgkFilter').value = '';
         document.getElementById('minPrice').value = '';
         document.getElementById('maxPrice').value = '';
+
         allBids = [...originalBids];
         currentPage = 1;
         displayBids();
     }
 
+    // 테이블 렌더링
     function displayBids() {
-        document.getElementById('loading').style.display = 'none';
-        document.getElementById('bidTableContainer').style.display = 'block';
+        const loadingEl = document.getElementById('loading');
+        const container = document.getElementById('bidTableContainer');
 
+        loadingEl.style.display = 'none';
+        container.style.display = 'block';
+
+        // 데이터가 없을 때
         if (allBids.length === 0) {
-            document.getElementById('bidTableContainer').style.display = 'none';
-            document.getElementById('loading').innerHTML = `
-            <div style="text-align: center; padding: 60px;">
-            <div style="font-size: 80px; margin-bottom: 10px;">📭</div>
-            <h3 style="color: #7f8c8d; margin-bottom: 10px;">입찰 데이터가 없습니다.</h3>
-            <p style="color: #95a5a6;">홈페이지에서 "🔄 데이터 동기화"를 먼저 실행해주세요.</p>
-                <button class="btn" onclick="location.href='/'" style="margin-top: 20px;">홈으로 가기</button>
-        </div>
-    `;
-            document.getElementById('loading').style.display = 'block';
+            container.style.display = 'none';
+            loadingEl.innerHTML = `
+                <div style="text-align: center; padding: 60px;">
+                    <div style="font-size: 80px; margin-bottom: 10px;">📭</div>
+                    <h3 style="color: #7f8c8d; margin-bottom: 10px;">입찰 데이터가 없습니다.</h3>
+                    <p style="color: #95a5a6;">홈페이지에서 "🔄 데이터 동기화"를 먼저 실행해주세요.</p>
+                    <button class="btn" onclick="location.href='/'" style="margin-top: 20px;">홈으로 가기</button>
+                </div>
+            `;
+            loadingEl.style.display = 'block';
             return;
         }
 
@@ -343,7 +339,7 @@
 
         paginatedBids.forEach(bid => {
             const row = tbody.insertRow();
-            const today = new Date().toISOString().slice(0, 8).replace(/-/g, '');
+            const today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
             const isActive = bid.pbctEndDt && bid.pbctEndDt >= today;
 
             row.innerHTML = `
@@ -354,7 +350,11 @@
                 <td class="price">${formatPrice(bid.apslAsesAvgAmt)}</td>
                 <td>${formatDate(bid.pbctBgnDt)}</td>
                 <td>${formatDate(bid.pbctEndDt)}</td>
-                <td><span class="status ${isActive ? 'status-active' : 'status-ended'}">${isActive ? '진행중' : '마감'}</span></td>
+                <td>
+                    <span class="status ${isActive ? 'status-active' : 'status-ended'}">
+                        ${isActive ? '진행중' : '마감'}
+                    </span>
+                </td>
                 <td>
                     <button class="btn btn-small" onclick="viewDetail('${bid.pbctNo}')">상세</button>
                     <button class="btn btn-small btn-success" onclick="addBookmark('${bid.pbctNo}')">★</button>
@@ -365,6 +365,7 @@
         renderPagination();
     }
 
+    // 페이지네이션
     function renderPagination() {
         const totalPages = Math.ceil(allBids.length / itemsPerPage);
         const pagination = document.getElementById('pagination');
@@ -382,6 +383,7 @@
         }
     }
 
+    // 정렬
     function sortTable(column) {
         if (sortColumn === column) {
             sortAsc = !sortAsc;
@@ -401,27 +403,33 @@
                 return sortAsc ? valA - valB : valB - valA;
             }
 
-            return sortAsc ? valA.localeCompare(valB) : valB.localeCompare(valA);
+            return sortAsc
+                ? String(valA).localeCompare(String(valB))
+                : String(valB).localeCompare(String(valA));
         });
 
         displayBids();
     }
 
+    // 가격 포맷
     function formatPrice(price) {
         if (!price) return '-';
         return (price / 10000).toLocaleString() + '만원';
     }
 
+    // 날짜 포맷 (YYYYMMDD → YYYY-MM-DD)
     function formatDate(dateStr) {
         if (!dateStr || dateStr.length !== 8) return '-';
         return `${dateStr.slice(0, 4)}-${dateStr.slice(4, 6)}-${dateStr.slice(6, 8)}`;
     }
 
+    // 상세 페이지(향후 구현 예정)
     function viewDetail(pbctNo) {
         alert('상세 페이지 준비중: ' + pbctNo);
         // TODO: 상세 페이지 구현
     }
 
+    // 북마크 추가
     async function addBookmark(pbctNo) {
         const token = localStorage.getItem('token');
         if (!token) {
@@ -440,18 +448,30 @@
                 body: JSON.stringify({ pbctNo: pbctNo })
             });
 
-            const data = await response.json();
-            if (response.ok) {
-                alert('✅ 북마크에 추가되었습니다!');
-            } else {
-                alert('❌ ' + data.error);
+            const data = await response.json().catch(() => null);
+
+            if (!response.ok || !data || data.success === false) {
+                const code = data && data.code ? data.code : 'BOOKMARK_ADD_ERROR';
+                const msg = getBookmarkMessageByCode(code);
+
+                if (response.status === 401 || code === 'AUTH_REQUIRED') {
+                    alert(msg);
+                    location.href = '/login';
+                    return;
+                }
+
+                alert(msg);
+                return;
             }
+
+            const code = data.code || 'BOOKMARK_ADD_SUCCESS';
+            alert(getBookmarkMessageByCode(code));
         } catch (error) {
-            alert('오류: ' + error.message);
+            alert(getBookmarkMessageByCode('BOOKMARK_ADD_ERROR'));
         }
     }
 
-
+    // 초기 로딩
     loadBids();
 </script>
 </body>

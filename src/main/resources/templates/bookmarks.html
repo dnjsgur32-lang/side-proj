@@ -62,9 +62,34 @@
 <script>
     const token = localStorage.getItem('token');
 
+    // 로그인 안 되어 있으면 바로 리다이렉트 (프론트에서 한글)
     if (!token) {
         alert('로그인이 필요합니다.');
         location.href = '/login';
+    }
+
+    // ✅ 백엔드에서 내려주는 code → 한글 메시지 매핑
+    function getBookmarkMessageByCode(code) {
+        switch (code) {
+            case 'AUTH_REQUIRED':
+                return '🔑 로그인이 필요합니다.';
+            case 'BOOKMARK_PBCTNO_REQUIRED':
+                return '❌ 북마크 대상 공고번호가 필요합니다.';
+            case 'BOOKMARK_ADD_SUCCESS':
+                return '✅ 북마크에 추가되었습니다.';
+            case 'BOOKMARK_ADD_ERROR':
+                return '❌ 북마크 추가 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.';
+            case 'BOOKMARK_DELETE_SUCCESS':
+                return '✅ 북마크가 삭제되었습니다.';
+            case 'BOOKMARK_DELETE_ERROR':
+                return '❌ 북마크 삭제 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.';
+            case 'BOOKMARK_LIST_OK':
+                return '✅ 북마크 목록을 불러왔습니다.';
+            case 'BOOKMARK_LIST_ERROR':
+                return '❌ 북마크 목록을 불러오는 중 오류가 발생했습니다.';
+            default:
+                return '❌ 알 수 없는 응답입니다. 잠시 후 다시 시도해주세요.';
+        }
     }
 
     async function loadBookmarks() {
@@ -73,11 +98,31 @@
                 headers: { 'Authorization': 'Bearer ' + token }
             });
 
-            if (!response.ok) {
-                throw new Error('북마크 로드 실패');
+            const data = await response.json().catch(() => null);
+
+            // 실패 처리 (401 또는 success=false)
+            if (!response.ok || (data && data.success === false)) {
+                const code = data && data.code ? data.code : 'BOOKMARK_LIST_ERROR';
+                const msg = getBookmarkMessageByCode(code);
+
+                if (response.status === 401 || code === 'AUTH_REQUIRED') {
+                    alert(msg);
+                    location.href = '/login';
+                    return;
+                }
+
+                document.getElementById('loading').innerHTML = '❌ ' + msg;
+                return;
             }
 
-            const bookmarks = await response.json();
+            // 성공: 컨트롤러가 Map {success, code, data} 형태일 때
+            let bookmarks = [];
+            if (Array.isArray(data)) {
+                // 혹시 옛날 버전(배열 바로 반환)일 경우 대비
+                bookmarks = data;
+            } else if (data && Array.isArray(data.data)) {
+                bookmarks = data.data;
+            }
 
             if (bookmarks.length === 0) {
                 showEmpty();
@@ -85,6 +130,7 @@
             }
 
             await loadBidDetails(bookmarks);
+
         } catch (error) {
             document.getElementById('loading').innerHTML = '❌ 오류: ' + error.message;
         }
@@ -92,6 +138,7 @@
 
     async function loadBidDetails(bookmarks) {
         try {
+            // 이 API는 현재 List<KamcoBid> 그대로 내려주므로 그대로 사용
             const response = await fetch('/api/bids-from-db?pageNo=1&numOfRows=1000');
             const allBids = await response.json();
 
@@ -152,12 +199,27 @@
                 headers: { 'Authorization': 'Bearer ' + token }
             });
 
-            if (response.ok) {
-                alert('✅ 북마크가 삭제되었습니다.');
-                location.reload();
-            } else {
-                alert('❌ 삭제 실패');
+            const data = await response.json().catch(() => null);
+
+            if (!response.ok || (data && data.success === false)) {
+                const code = data && data.code ? data.code : 'BOOKMARK_DELETE_ERROR';
+                const msg = getBookmarkMessageByCode(code);
+
+                if (response.status === 401 || code === 'AUTH_REQUIRED') {
+                    alert(msg);
+                    location.href = '/login';
+                    return;
+                }
+
+                alert(msg);
+                return;
             }
+
+            const code = data && data.code ? data.code : 'BOOKMARK_DELETE_SUCCESS';
+            const msg = getBookmarkMessageByCode(code);
+            alert(msg);
+            location.reload();
+
         } catch (error) {
             alert('오류: ' + error.message);
         }
