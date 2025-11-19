@@ -18,13 +18,14 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/notifications")
 @Tag(name = "알림 API", description = "알림 관리 API")
+@CrossOrigin(origins = "*")
 public class NotificationController {
 
     @Autowired
     private NotificationService notificationService;
 
     // ===========================
-    // 내 알림 조회
+    // 내 알림 조회 (전체 목록)
     // ===========================
     @Operation(summary = "내 알림 조회", description = "로그인한 회원님의 모든 알림 조회")
     @GetMapping
@@ -44,8 +45,12 @@ public class NotificationController {
             List<Notification> notifications = notificationService.getUserNotifications(userId);
             log.info("[알림 조회 성공] userId={}, count={}", userId, notifications.size());
 
-            // 기존처럼 리스트 그대로 반환 (형태 유지, 메시지 없음)
-            return ResponseEntity.ok(notifications);
+            // ✅ 항상 {success, code, data} 형태로 반환
+            return ResponseEntity.ok(Map.of(
+                    "success", true,
+                    "code", "NOTIFICATION_LIST_OK",
+                    "data", notifications
+            ));
         } catch (Exception e) {
             log.error("[알림 조회 오류] {}", e.getMessage(), e);
             return ResponseEntity.badRequest().body(Map.of(
@@ -214,8 +219,12 @@ public class NotificationController {
             List<UserAlert> alerts = notificationService.getUserAlerts(userId);
             log.info("[알림 설정 조회 성공] userId={}, count={}", userId, alerts.size());
 
-            // 기존처럼 리스트 그대로 반환 (형태 유지, 메시지 없음)
-            return ResponseEntity.ok(alerts);
+            // ✅ 항상 {success, code, data}로 내려줌
+            return ResponseEntity.ok(Map.of(
+                    "success", true,
+                    "code", "ALERT_LIST_OK",
+                    "data", alerts
+            ));
         } catch (Exception e) {
             log.error("[알림 설정 조회 오류] {}", e.getMessage(), e);
             return ResponseEntity.badRequest().body(Map.of(
@@ -341,6 +350,7 @@ public class NotificationController {
     // ===========================
     // 테스트 알림 생성
     // ===========================
+    @Operation(summary = "테스트 알림 생성")
     @GetMapping("/test")
     public ResponseEntity<?> createTestNotification(Authentication auth) {
         try {

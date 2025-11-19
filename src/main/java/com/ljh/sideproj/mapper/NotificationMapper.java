@@ -2,6 +2,7 @@ package com.ljh.sideproj.mapper;
 
 import com.ljh.sideproj.dto.Notification;
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
 
 import java.util.List;
 
@@ -16,4 +17,5 @@ public interface NotificationMapper {
     void deleteNotification(Long notificationId);
     int countUnreadByUserId(Long userId);
     void deleteAllByUserId(Long userId);
+    List<com.ljh.sideproj.dto.Bid> getMyBids(@Param("userId") Long userId);
 }

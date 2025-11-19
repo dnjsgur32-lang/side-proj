@@ -86,10 +86,13 @@
     let token = localStorage.getItem('token');
     let username = localStorage.getItem('username');
 
-    // ✅ code → 한글 메시지 매핑
+    /* -----------------------------------------------------
+     * 공통 메시지 매핑
+     * ----------------------------------------------------- */
     function getNotificationMessageByCode(code) {
         switch (code) {
             case 'AUTH_REQUIRED': return '🔑 로그인이 필요합니다.';
+            case 'NOTIFICATION_LIST_OK': return '✅ 알림 목록을 불러왔습니다.';
             case 'NOTIFICATION_LIST_ERROR': return '❌ 알림 목록을 불러오는 중 오류가 발생했습니다.';
             case 'UNREAD_LIST_OK': return '✅ 읽지 않은 알림 정보를 불러왔습니다.';
             case 'UNREAD_LIST_ERROR': return '❌ 읽지 않은 알림 정보를 불러오는 중 오류가 발생했습니다.';
@@ -99,9 +102,8 @@
             case 'NOTIFICATION_READ_ALL_ERROR': return '❌ 모든 알림 읽음 처리 중 오류가 발생했습니다.';
             case 'ALERT_CREATE_SUCCESS': return '✅ 알림 설정이 생성되었습니다.';
             case 'ALERT_CREATE_ERROR': return '❌ 알림 설정 생성 중 오류가 발생했습니다.';
+            case 'ALERT_LIST_OK': return '✅ 알림 설정 목록을 불러왔습니다.';
             case 'ALERT_LIST_ERROR': return '❌ 알림 설정 목록을 불러오는 중 오류가 발생했습니다.';
-            case 'ALERT_UPDATE_SUCCESS': return '✅ 알림 설정이 수정되었습니다.';
-            case 'ALERT_UPDATE_ERROR': return '❌ 알림 설정 수정 중 오류가 발생했습니다.';
             case 'ALERT_DELETE_SUCCESS': return '✅ 알림 설정이 삭제되었습니다.';
             case 'ALERT_DELETE_ERROR': return '❌ 알림 설정 삭제 중 오류가 발생했습니다.';
             case 'NOTIFICATION_DELETE_SUCCESS': return '✅ 알림이 삭제되었습니다.';
@@ -114,6 +116,9 @@
         }
     }
 
+    /* -----------------------------------------------------
+     * 로그인 체크
+     * ----------------------------------------------------- */
     function checkLogin() {
         if (!token || !username) {
             alert('로그인이 필요합니다.');
@@ -123,6 +128,9 @@
         return true;
     }
 
+    /* -----------------------------------------------------
+     * 페이지 진입 초기화
+     * ----------------------------------------------------- */
     function initPage() {
         if (!checkLogin()) return;
 
@@ -134,25 +142,39 @@
 
         loadNotifications();
         loadAlerts();
-        searchBids();
+        searchBids();   // 처음에 자동 로드
     }
 
+    /* -----------------------------------------------------
+     * 🔍 입찰 목록 검색
+     * ApiResponse 구조 반영 (result.data 사용)
+     * ----------------------------------------------------- */
     function searchBids() {
         const keyword = document.getElementById('searchKeyword').value;
-        const url = keyword ?
-            `/api/bids-from-db?numOfRows=20&cltrNm=${keyword}` :
-            `/api/bids-from-db?numOfRows=20`;
+
+        const url = keyword
+            ? `/api/bids-from-db?numOfRows=20&cltrNm=${encodeURIComponent(keyword)}`
+            : `/api/bids-from-db?numOfRows=20`;
 
         fetch(url)
             .then(res => res.json())
-            .then(data => {
+            .then(result => {
                 const list = document.getElementById('bidList');
-                if (!Array.isArray(data) || data.length === 0) {
+
+                if (!result.success) {
+                    list.innerHTML = '<p>검색 중 오류 발생</p>';
+                    return;
+                }
+
+                const data = result.data || [];
+
+                if (data.length === 0) {
                     list.innerHTML = '<p>검색 결과가 없습니다.</p>';
                     return;
                 }
+
                 list.innerHTML = data.map(bid => `
-                    <div class="bid-item" onclick="selectBid('${bid.pbctNo}', '${bid.cltrNm}')">
+                    <div class="bid-item" onclick="selectBid('${bid.pbctNo}', '${bid.cltrNm || ''}')">
                         <strong>🏠 ${bid.cltrNm || '물건명 없음'}</strong><br>
                         <small>공고번호: ${bid.pbctNo}</small><br>
                         <small>최저가: ${(bid.minBidPrc || 0).toLocaleString()}원</small><br>
@@ -163,6 +185,9 @@
             .catch(() => alert('입찰 목록 조회 실패'));
     }
 
+    /* -----------------------------------------------------
+     * 🏷️ 입찰 선택 → 알림 설정 폼 오픈
+     * ----------------------------------------------------- */
     function selectBid(pbctNo, cltrNm) {
         document.getElementById('selectedPbctNo').value = pbctNo;
         document.getElementById('selectedBidInfo').innerHTML = `
@@ -180,15 +205,15 @@
 
     function toggleAlertOptions() {
         const alertType = document.getElementById('alertType').value;
-        if (alertType === 'DEADLINE') {
-            document.getElementById('deadlineOption').style.display = 'block';
-            document.getElementById('priceOption').style.display = 'none';
-        } else if (alertType === 'PRICE') {
-            document.getElementById('deadlineOption').style.display = 'none';
-            document.getElementById('priceOption').style.display = 'block';
-        }
+        document.getElementById('deadlineOption').style.display =
+            alertType === 'DEADLINE' ? 'block' : 'none';
+        document.getElementById('priceOption').style.display =
+            alertType === 'PRICE' ? 'block' : 'none';
     }
 
+    /* -----------------------------------------------------
+     * 🔔 알림 생성
+     * ----------------------------------------------------- */
     function createAlert() {
         const pbctNo = document.getElementById('selectedPbctNo').value;
         if (!pbctNo) {
@@ -198,14 +223,14 @@
 
         const alertType = document.getElementById('alertType').value;
         const alertData = {
-            pbctNo: pbctNo,
-            alertType: alertType,
+            pbctNo,
+            alertType,
             isActive: true
         };
 
         if (alertType === 'DEADLINE') {
             alertData.alertDaysBefore = document.getElementById('daysBefore').value;
-        } else if (alertType === 'PRICE') {
+        } else {
             const targetPrice = document.getElementById('targetPrice').value;
             if (!targetPrice || targetPrice <= 0) {
                 alert('목표 가격을 입력해주세요.');
@@ -224,124 +249,97 @@
         })
             .then(async res => {
                 const data = await res.json().catch(() => null);
-                if (!res.ok || (data && data.success === false)) {
-                    const code = data && data.code ? data.code : 'ALERT_CREATE_ERROR';
-                    const msg = getNotificationMessageByCode(code);
-                    if (res.status === 401 || code === 'AUTH_REQUIRED') {
-                        alert(msg);
-                        location.href = '/login';
-                        return;
-                    }
-                    alert(msg);
+
+                if (!res.ok || !data || data.success === false) {
+                    const code = data?.code ?? 'ALERT_CREATE_ERROR';
+                    alert(getNotificationMessageByCode(code));
                     return;
                 }
-                const code = data && data.code ? data.code : 'ALERT_CREATE_SUCCESS';
-                alert(getNotificationMessageByCode(code));
+
+                alert(getNotificationMessageByCode('ALERT_CREATE_SUCCESS'));
                 cancelSelection();
                 loadAlerts();
             })
             .catch(() => alert(getNotificationMessageByCode('ALERT_CREATE_ERROR')));
     }
 
+    /* -----------------------------------------------------
+     * 📬 알림 목록 로드
+     * ----------------------------------------------------- */
     function loadNotifications() {
-        // 전체 알림 목록
+        const list = document.getElementById('notificationList');
+
         fetch('/api/notifications', {
-            headers: {'Authorization': 'Bearer ' + token}
+            headers: { 'Authorization': 'Bearer ' + token }
         })
-            .then(async res => {
-                const data = await res.json().catch(() => null);
-                if (!res.ok) {
-                    const code = data && data.code ? data.code : 'NOTIFICATION_LIST_ERROR';
-                    const msg = getNotificationMessageByCode(code);
-                    if (res.status === 401 || code === 'AUTH_REQUIRED') {
-                        alert(msg);
-                        location.href = '/login';
-                        return;
-                    }
-                    alert(msg);
+            .then(res => res.json())
+            .then(result => {
+                if (!result.success) {
+                    list.innerHTML = '<p>알림 목록 로드 실패</p>';
                     return;
                 }
 
-                const list = document.getElementById('notificationList');
-                const notifications = Array.isArray(data) ? data : [];
+                const notifications = result.data || [];
+
                 if (notifications.length === 0) {
                     list.innerHTML = '<p>알림이 없습니다.</p>';
                     return;
                 }
 
                 list.innerHTML = notifications.map(n => `
-                <div class="notification ${n.isRead ? '' : 'unread'}">
-                    <strong>${n.notificationType}</strong>: ${n.message}
-                    <br><small>${n.createdAt}</small><br>
-                    ${!n.isRead ? `<button class="btn" onclick="markRead(${n.notificationId})">읽음</button>` : ''}
-                    <button class="btn btn-danger" onclick="deleteNotification(${n.notificationId})">삭제</button>
-                </div>
-            `).join('');
+                    <div class="notification ${n.isRead ? '' : 'unread'}">
+                        <strong>${n.notificationType}</strong>: ${n.message}
+                        <br><small>${n.createdAt}</small><br>
+                        ${!n.isRead ? `<button class="btn" onclick="markRead(${n.notificationId})">읽음</button>` : ''}
+                        <button class="btn btn-danger" onclick="deleteNotification(${n.notificationId})">삭제</button>
+                    </div>
+                `).join('');
             });
 
         // 미읽음 개수
         fetch('/api/notifications/unread', {
-            headers: {'Authorization': 'Bearer ' + token}
+            headers: { 'Authorization': 'Bearer ' + token }
         })
-            .then(async res => {
-                const data = await res.json().catch(() => null);
-                if (!res.ok || (data && data.success === false)) {
-                    const code = data && data.code ? data.code : 'UNREAD_LIST_ERROR';
-                    const msg = getNotificationMessageByCode(code);
-                    if (res.status === 401 || code === 'AUTH_REQUIRED') {
-                        alert(msg);
-                        location.href = '/login';
-                        return;
-                    }
-                    // 개수 출력만 실패한 건 조용히 무시해도 됨
-                    return;
-                }
-                const count = data.count ?? 0;
+            .then(res => res.json())
+            .then(result => {
+                if (!result.success) return;
+                const count = result.count ?? 0;
                 document.getElementById('unreadCount').textContent = `(${count}개)`;
             });
     }
 
+    /* -----------------------------------------------------
+     * 🔘 알림 읽음 처리
+     * ----------------------------------------------------- */
     function markRead(id) {
         fetch(`/api/notifications/${id}/read`, {
             method: 'PUT',
-            headers: {'Authorization': 'Bearer ' + token}
+            headers: { 'Authorization': 'Bearer ' + token }
         })
-            .then(async res => {
-                const data = await res.json().catch(() => null);
-                if (!res.ok || (data && data.success === false)) {
-                    const code = data && data.code ? data.code : 'NOTIFICATION_READ_ERROR';
-                    const msg = getNotificationMessageByCode(code);
-                    if (res.status === 401 || code === 'AUTH_REQUIRED') {
-                        alert(msg);
-                        location.href = '/login';
-                        return;
-                    }
-                    alert(msg);
+            .then(res => res.json())
+            .then(result => {
+                if (!result.success) {
+                    alert(getNotificationMessageByCode(result.code || 'NOTIFICATION_READ_ERROR'));
                     return;
                 }
-                alert(getNotificationMessageByCode('NOTIFICATION_READ_SUCCESS'));
                 loadNotifications();
             });
     }
 
+    /* -----------------------------------------------------
+     * 🔘 모든 알림 읽음 처리
+     * ----------------------------------------------------- */
     function markAllRead() {
         if (!confirm('모든 알림을 읽음 처리하시겠습니까?')) return;
 
         fetch('/api/notifications/read-all', {
             method: 'PUT',
-            headers: {'Authorization': 'Bearer ' + token}
+            headers: { 'Authorization': 'Bearer ' + token }
         })
-            .then(async res => {
-                const data = await res.json().catch(() => null);
-                if (!res.ok || (data && data.success === false)) {
-                    const code = data && data.code ? data.code : 'NOTIFICATION_READ_ALL_ERROR';
-                    const msg = getNotificationMessageByCode(code);
-                    if (res.status === 401 || code === 'AUTH_REQUIRED') {
-                        alert(msg);
-                        location.href = '/login';
-                        return;
-                    }
-                    alert(msg);
+            .then(res => res.json())
+            .then(result => {
+                if (!result.success) {
+                    alert(getNotificationMessageByCode(result.code || 'NOTIFICATION_READ_ALL_ERROR'));
                     return;
                 }
                 alert(getNotificationMessageByCode('NOTIFICATION_READ_ALL_SUCCESS'));
@@ -349,145 +347,126 @@
             });
     }
 
-    function createTestNotification() {
-        fetch('/api/notifications/test', {
-            headers: {'Authorization': 'Bearer ' + token}
-        })
-            .then(async res => {
-                const data = await res.json().catch(() => null);
-                if (!res.ok || (data && data.success === false)) {
-                    const code = data && data.code ? data.code : 'TEST_NOTIFICATION_ERROR';
-                    alert(getNotificationMessageByCode(code));
-                    return;
-                }
-                const code = data && data.code ? data.code : 'TEST_NOTIFICATION_CREATED';
-                alert(getNotificationMessageByCode(code));
-                loadNotifications();
-            });
-    }
-
-    function loadAlerts() {
-        fetch('/api/notifications/alerts', {
-            headers: {'Authorization': 'Bearer ' + token}
-        })
-            .then(async res => {
-                const data = await res.json().catch(() => null);
-                const list = document.getElementById('alertList');
-
-                if (!res.ok) {
-                    const code = data && data.code ? data.code : 'ALERT_LIST_ERROR';
-                    const msg = getNotificationMessageByCode(code);
-                    if (res.status === 401 || code === 'AUTH_REQUIRED') {
-                        alert(msg);
-                        location.href = '/login';
-                        return;
-                    }
-                    list.innerHTML = '<p>알림 설정을 불러오는 중 오류가 발생했습니다.</p>';
-                    return;
-                }
-
-                const alerts = Array.isArray(data) ? data : [];
-                if (alerts.length === 0) {
-                    list.innerHTML = '<p>설정된 알림이 없습니다.</p>';
-                    return;
-                }
-
-                list.innerHTML = alerts.map(alert => {
-                    let detailInfo = '';
-                    if (alert.alertType === 'DEADLINE') {
-                        detailInfo = `<strong>며칠 전:</strong> ${alert.alertDaysBefore}일`;
-                    } else if (alert.alertType === 'PRICE') {
-                        detailInfo = `<strong>목표 가격:</strong> ${(alert.targetPrice || 0).toLocaleString()}원`;
-                    }
-                    return `
-                    <div class="alert-item ${alert.isActive ? '' : 'inactive'}">
-                        <strong>공고번호:</strong> ${alert.pbctNo || '전체'}<br>
-                        <strong>알림 타입:</strong> ${alert.alertType === 'DEADLINE' ? '마감 알림' : '가격 변동 알림'}<br>
-                        ${detailInfo}<br>
-                        <strong>상태:</strong> ${alert.isActive ? '활성' : '비활성'}<br>
-                        <small>생성일: ${alert.createdAt}</small><br>
-                        <button class="btn btn-danger" onclick="deleteAlert(${alert.alertId})">삭제</button>
-                    </div>
-                `;
-                }).join('');
-            });
-    }
-
-    function deleteAlert(alertId) {
-        if (!confirm('이 알림 설정을 삭제하시겠습니까?')) return;
-
-        fetch(`/api/notifications/alerts/${alertId}`, {
-            method: 'DELETE',
-            headers: {'Authorization': 'Bearer ' + token}
-        })
-            .then(async res => {
-                const data = await res.json().catch(() => null);
-                if (!res.ok || (data && data.success === false)) {
-                    const code = data && data.code ? data.code : 'ALERT_DELETE_ERROR';
-                    const msg = getNotificationMessageByCode(code);
-                    if (res.status === 401 || code === 'AUTH_REQUIRED') {
-                        alert(msg);
-                        location.href = '/login';
-                        return;
-                    }
-                    alert(msg);
-                    return;
-                }
-                alert(getNotificationMessageByCode('ALERT_DELETE_SUCCESS'));
-                loadAlerts();
-            });
-    }
-
-    function deleteNotification(notificationId) {
+    /* -----------------------------------------------------
+     * ❌ 알림 삭제
+     * ----------------------------------------------------- */
+    function deleteNotification(id) {
         if (!confirm('이 알림을 삭제하시겠습니까?')) return;
 
-        fetch(`/api/notifications/${notificationId}`, {
+        fetch(`/api/notifications/${id}`, {
             method: 'DELETE',
-            headers: {'Authorization': 'Bearer ' + token}
+            headers: { 'Authorization': 'Bearer ' + token }
         })
-            .then(async res => {
-                const data = await res.json().catch(() => null);
-                if (!res.ok || (data && data.success === false)) {
-                    const code = data && data.code ? data.code : 'NOTIFICATION_DELETE_ERROR';
-                    const msg = getNotificationMessageByCode(code);
-                    if (res.status === 401 || code === 'AUTH_REQUIRED') {
-                        alert(msg);
-                        location.href = '/login';
-                        return;
-                    }
-                    alert(msg);
+            .then(res => res.json())
+            .then(result => {
+                if (!result.success) {
+                    alert(getNotificationMessageByCode(result.code || 'NOTIFICATION_DELETE_ERROR'));
                     return;
                 }
-                alert(getNotificationMessageByCode('NOTIFICATION_DELETE_SUCCESS'));
                 loadNotifications();
             });
     }
 
+    /* -----------------------------------------------------
+     * ❌ 모든 알림 삭제
+     * ----------------------------------------------------- */
     function deleteAllNotifications() {
         if (!confirm('모든 알림을 삭제하시겠습니까?')) return;
 
         fetch('/api/notifications/delete-all', {
             method: 'DELETE',
-            headers: {'Authorization': 'Bearer ' + token}
+            headers: { 'Authorization': 'Bearer ' + token }
         })
-            .then(async res => {
-                const data = await res.json().catch(() => null);
-                if (!res.ok || (data && data.success === false)) {
-                    const code = data && data.code ? data.code : 'NOTIFICATION_DELETE_ALL_ERROR';
-                    const msg = getNotificationMessageByCode(code);
-                    if (res.status === 401 || code === 'AUTH_REQUIRED') {
-                        alert(msg);
-                        location.href = '/login';
-                        return;
-                    }
-                    alert(msg);
+            .then(res => res.json())
+            .then(result => {
+                if (!result.success) {
+                    alert(getNotificationMessageByCode(result.code || 'NOTIFICATION_DELETE_ALL_ERROR'));
                     return;
                 }
-                alert(getNotificationMessageByCode('NOTIFICATION_DELETE_ALL_SUCCESS'));
                 loadNotifications();
             });
     }
 
+    /* -----------------------------------------------------
+     * 🛎️ 테스트 알림
+     * ----------------------------------------------------- */
+    function createTestNotification() {
+        fetch('/api/notifications/test', {
+            headers: { 'Authorization': 'Bearer ' + token }
+        })
+            .then(res => res.json())
+            .then(result => {
+                if (!result.success) {
+                    alert(getNotificationMessageByCode(result.code || 'TEST_NOTIFICATION_ERROR'));
+                    return;
+                }
+                alert(getNotificationMessageByCode('TEST_NOTIFICATION_CREATED'));
+                loadNotifications();
+            });
+    }
+
+    /* -----------------------------------------------------
+     * ⚙️ 알림 설정 목록
+     * ----------------------------------------------------- */
+    function loadAlerts() {
+        const list = document.getElementById('alertList');
+
+        fetch('/api/notifications/alerts', {
+            headers: { 'Authorization': 'Bearer ' + token }
+        })
+            .then(res => res.json())
+            .then(result => {
+                if (!result.success) {
+                    list.innerHTML = '<p>알림 설정 목록 불러오기 실패</p>';
+                    return;
+                }
+
+                const alerts = result.data || [];
+
+                if (alerts.length === 0) {
+                    list.innerHTML = '<p>설정된 알림이 없습니다.</p>';
+                    return;
+                }
+
+                list.innerHTML = alerts.map(alert => `
+                    <div class="alert-item ${alert.isActive ? '' : 'inactive'}">
+                        <strong>공고번호:</strong> ${alert.pbctNo}<br>
+                        <strong>알림 타입:</strong> ${alert.alertType === 'DEADLINE' ? '마감 알림' : '가격 알림'}<br>
+                        ${
+                    alert.alertType === 'DEADLINE'
+                        ? `<strong>며칠 전:</strong> ${alert.alertDaysBefore}일`
+                        : `<strong>목표 가격:</strong> ${(alert.targetPrice || 0).toLocaleString()}원`
+                }
+                        <br>
+                        <button class="btn btn-danger" onclick="deleteAlert(${alert.alertId})">삭제</button>
+                    </div>
+                `).join('');
+            });
+    }
+
+    /* -----------------------------------------------------
+     * ❌ 알림 설정 삭제
+     * ----------------------------------------------------- */
+    function deleteAlert(id) {
+        if (!confirm('이 알림 설정을 삭제하시겠습니까?')) return;
+
+        fetch(`/api/notifications/alerts/${id}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': 'Bearer ' + token }
+        })
+            .then(res => res.json())
+            .then(result => {
+                if (!result.success) {
+                    alert(getNotificationMessageByCode(result.code || 'ALERT_DELETE_ERROR'));
+                    return;
+                }
+                loadAlerts();
+            });
+    }
+
+    /* -----------------------------------------------------
+     * 페이지 시작
+     * ----------------------------------------------------- */
     initPage();
 </script>
 </body>

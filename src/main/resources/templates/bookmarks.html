@@ -52,8 +52,7 @@
                     <th>액션</th>
                 </tr>
                 </thead>
-                <tbody id="bookmarkTableBody">
-                </tbody>
+                <tbody id="bookmarkTableBody"></tbody>
             </table>
         </div>
     </div>
@@ -62,93 +61,70 @@
 <script>
     const token = localStorage.getItem('token');
 
-    // 로그인 안 되어 있으면 바로 리다이렉트 (프론트에서 한글)
     if (!token) {
         alert('로그인이 필요합니다.');
         location.href = '/login';
     }
 
-    // ✅ 백엔드에서 내려주는 code → 한글 메시지 매핑
     function getBookmarkMessageByCode(code) {
         switch (code) {
-            case 'AUTH_REQUIRED':
-                return '🔑 로그인이 필요합니다.';
-            case 'BOOKMARK_PBCTNO_REQUIRED':
-                return '❌ 북마크 대상 공고번호가 필요합니다.';
-            case 'BOOKMARK_ADD_SUCCESS':
-                return '✅ 북마크에 추가되었습니다.';
-            case 'BOOKMARK_ADD_ERROR':
-                return '❌ 북마크 추가 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.';
-            case 'BOOKMARK_DELETE_SUCCESS':
-                return '✅ 북마크가 삭제되었습니다.';
-            case 'BOOKMARK_DELETE_ERROR':
-                return '❌ 북마크 삭제 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.';
-            case 'BOOKMARK_LIST_OK':
-                return '✅ 북마크 목록을 불러왔습니다.';
-            case 'BOOKMARK_LIST_ERROR':
-                return '❌ 북마크 목록을 불러오는 중 오류가 발생했습니다.';
-            default:
-                return '❌ 알 수 없는 응답입니다. 잠시 후 다시 시도해주세요.';
+            case 'AUTH_REQUIRED': return '🔑 로그인이 필요합니다.';
+            case 'BOOKMARK_PBCTNO_REQUIRED': return '❌ 공고번호가 없습니다.';
+            case 'BOOKMARK_ADD_SUCCESS': return '✅ 북마크 추가 완료';
+            case 'BOOKMARK_DELETE_SUCCESS': return '🗑️ 북마크 삭제 완료';
+            case 'BOOKMARK_LIST_ERROR': return '❌ 북마크 목록 불러오기 실패';
+            default: return '❌ 알 수 없는 오류';
         }
     }
 
     async function loadBookmarks() {
         try {
-            const response = await fetch('/api/bookmarks', {
+            const res = await fetch('/api/bookmarks', {
                 headers: { 'Authorization': 'Bearer ' + token }
             });
 
-            const data = await response.json().catch(() => null);
+            const result = await res.json().catch(() => null);
 
-            // 실패 처리 (401 또는 success=false)
-            if (!response.ok || (data && data.success === false)) {
-                const code = data && data.code ? data.code : 'BOOKMARK_LIST_ERROR';
-                const msg = getBookmarkMessageByCode(code);
-
-                if (response.status === 401 || code === 'AUTH_REQUIRED') {
-                    alert(msg);
-                    location.href = '/login';
-                    return;
-                }
-
-                document.getElementById('loading').innerHTML = '❌ ' + msg;
+            if (!res.ok || !result || result.success === false) {
+                const msg = getBookmarkMessageByCode(result?.code);
+                document.getElementById('loading').innerHTML = msg;
                 return;
             }
 
-            // 성공: 컨트롤러가 Map {success, code, data} 형태일 때
-            let bookmarks = [];
-            if (Array.isArray(data)) {
-                // 혹시 옛날 버전(배열 바로 반환)일 경우 대비
-                bookmarks = data;
-            } else if (data && Array.isArray(data.data)) {
-                bookmarks = data.data;
-            }
+            const bookmarks = result.data;  // ⭐ 핵심: result.data 사용
 
-            if (bookmarks.length === 0) {
+            if (!Array.isArray(bookmarks) || bookmarks.length === 0) {
                 showEmpty();
                 return;
             }
 
-            await loadBidDetails(bookmarks);
+            loadBidDetails(bookmarks);
 
-        } catch (error) {
-            document.getElementById('loading').innerHTML = '❌ 오류: ' + error.message;
+        } catch (e) {
+            document.getElementById('loading').innerHTML = '❌ 네트워크 오류';
         }
     }
 
     async function loadBidDetails(bookmarks) {
         try {
-            // 이 API는 현재 List<KamcoBid> 그대로 내려주므로 그대로 사용
-            const response = await fetch('/api/bids-from-db?pageNo=1&numOfRows=1000');
-            const allBids = await response.json();
+            const res = await fetch(`/api/bids-from-db?pageNo=1&numOfRows=2000`);
+            const result = await res.json();
 
-            const bookmarkedBids = bookmarks.map(bookmark => {
-                return allBids.find(bid => bid.pbctNo === bookmark.pbctNo);
-            }).filter(bid => bid != null);
+            if (!res.ok || !result || result.success === false) {
+                document.getElementById('loading').innerHTML = '❌ 입찰 정보 불러오기 실패';
+                return;
+            }
 
-            displayBookmarks(bookmarkedBids);
-        } catch (error) {
-            document.getElementById('loading').innerHTML = '❌ 입찰 정보 로드 실패';
+            const allBids = result.data;  // ⭐ 핵심: 여기서도 data.data 사용
+
+            const matched = bookmarks
+                .map(bm => allBids.find(b => b.pbctNo === bm.pbctNo))
+                .filter(Boolean);
+
+            displayBookmarks(matched);
+
+        } catch (e) {
+            document.getElementById('loading').innerHTML = '❌ 데이터 처리 중 오류';
         }
     }
 
@@ -161,18 +137,19 @@
         tbody.innerHTML = '';
 
         bids.forEach(bid => {
-            const row = tbody.insertRow();
-            row.innerHTML = `
-                <td>${bid.pbctNo || '-'}</td>
-                <td>${bid.cltrNm || '-'}</td>
-                <td>${bid.sido || ''} ${bid.sgk || ''}</td>
-                <td class="price">${formatPrice(bid.minBidPrc)}</td>
-                <td class="price">${formatPrice(bid.apslAsesAvgAmt)}</td>
-                <td>${formatDate(bid.pbctEndDt)}</td>
-                <td>
-                    <button class="btn btn-small" onclick="viewDetail('${bid.pbctNo}')">상세</button>
-                    <button class="btn btn-small btn-danger" onclick="removeBookmark('${bid.pbctNo}')">삭제</button>
-                </td>
+            tbody.innerHTML += `
+                <tr>
+                    <td>${bid.pbctNo}</td>
+                    <td>${bid.cltrNm || '-'}</td>
+                    <td>${bid.sido || ''} ${bid.sgk || ''}</td>
+                    <td class="price">${formatPrice(bid.minBidPrc)}</td>
+                    <td class="price">${formatPrice(bid.apslAsesAvgAmt)}</td>
+                    <td>${formatDate(bid.pbctEndDt)}</td>
+                    <td>
+                        <button class="btn btn-small" onclick="viewDetail('${bid.pbctNo}')">상세</button>
+                        <button class="btn btn-small btn-danger" onclick="removeBookmark('${bid.pbctNo}')">삭제</button>
+                    </td>
+                </tr>
             `;
         });
     }
@@ -182,61 +159,43 @@
         document.getElementById('bookmarkTableContainer').innerHTML = `
             <div class="empty">
                 <div class="empty-icon">📭</div>
-                <h3 style="color: #7f8c8d; margin-bottom: 10px;">북마크가 비어있습니다</h3>
-                <p style="color: #95a5a6;">입찰 목록에서 관심 물건을 북마크해보세요!</p>
-                <button class="btn" onclick="location.href='/bids'" style="margin-top: 20px;">입찰 목록 보기</button>
+                <p>북마크가 없습니다.</p>
             </div>
         `;
         document.getElementById('bookmarkTableContainer').style.display = 'block';
     }
 
     async function removeBookmark(pbctNo) {
-        if (!confirm('북마크를 삭제하시겠습니까?')) return;
+        if (!confirm('삭제하시겠습니까?')) return;
 
-        try {
-            const response = await fetch(`/api/bookmarks/${pbctNo}`, {
-                method: 'DELETE',
-                headers: { 'Authorization': 'Bearer ' + token }
-            });
+        const res = await fetch(`/api/bookmarks/${pbctNo}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': 'Bearer ' + token }
+        });
 
-            const data = await response.json().catch(() => null);
+        const result = await res.json().catch(() => null);
 
-            if (!response.ok || (data && data.success === false)) {
-                const code = data && data.code ? data.code : 'BOOKMARK_DELETE_ERROR';
-                const msg = getBookmarkMessageByCode(code);
-
-                if (response.status === 401 || code === 'AUTH_REQUIRED') {
-                    alert(msg);
-                    location.href = '/login';
-                    return;
-                }
-
-                alert(msg);
-                return;
-            }
-
-            const code = data && data.code ? data.code : 'BOOKMARK_DELETE_SUCCESS';
-            const msg = getBookmarkMessageByCode(code);
-            alert(msg);
-            location.reload();
-
-        } catch (error) {
-            alert('오류: ' + error.message);
+        if (!res.ok || !result || result.success === false) {
+            alert(getBookmarkMessageByCode(result?.code));
+            return;
         }
+
+        alert(getBookmarkMessageByCode('BOOKMARK_DELETE_SUCCESS'));
+        loadBookmarks();
     }
 
     function viewDetail(pbctNo) {
-        alert('상세 페이지 준비중: ' + pbctNo);
+        location.href = `/bid-detail?pbctNo=${pbctNo}`;
     }
 
-    function formatPrice(price) {
-        if (!price) return '-';
-        return (price / 10000).toLocaleString() + '만원';
+    function formatPrice(v) {
+        if (!v) return '-';
+        return (v / 10000).toLocaleString() + '만원';
     }
 
-    function formatDate(dateStr) {
-        if (!dateStr || dateStr.length !== 8) return '-';
-        return `${dateStr.slice(0,4)}-${dateStr.slice(4,6)}-${dateStr.slice(6,8)}`;
+    function formatDate(d) {
+        if (!d || d.length !== 8) return '-';
+        return `${d.slice(0,4)}-${d.slice(4,6)}-${d.slice(6,8)}`;
     }
 
     loadBookmarks();

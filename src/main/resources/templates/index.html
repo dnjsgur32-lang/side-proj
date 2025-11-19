@@ -54,7 +54,7 @@
                 <h3>📡 API 문서</h3>
                 <p>Swagger API 테스트</p>
             </div>
-            <div class="menu-item" onclick="window.open('/api/data-status', '_blank')">
+            <div class="menu-item" onclick="window.open('/data-status.html', '_blank')">
                 <h3>📊 데이터 현황</h3>
                 <p>DB 저장 데이터 확인</p>
             </div>
@@ -152,48 +152,88 @@
         updateUI();
     }
 
-    // ✅ turbo-sync 응답 code → 한글 메시지 매핑
-    function getSyncMessageByCode(code, data) {
+    // ✅ 동기화 중지 요청 함수 (새로 추가)
+    async function requestStopSync() {
+        try {
+            const btn = document.getElementById('stopSyncBtn');
+            if(btn) {
+                btn.disabled = true;
+                btn.textContent = '중지 중...';
+                btn.style.background = '#95a5a6'; // 버튼을 회색으로 비활성화
+            }
+
+            // 백엔드에 중지 플래그 설정 요청 (POST /api/stop-sync)
+            await fetch('/api/stop-sync', {
+                method: 'POST',
+                headers: {
+                    // 인증 토큰이 필요하다면 추가
+                    'Authorization': 'Bearer ' + localStorage.getItem('token'),
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            // 백엔드에서 루프가 끊기고 원래 fetch에 응답이 올 때까지 기다립니다.
+
+        } catch (e) {
+            console.error('중지 요청 실패', e);
+            alert('❌ 중지 요청에 실패했습니다. 서버 로그를 확인하세요.');
+        }
+    }
+
+
+    // ✅ turbo-sync 응답 code → 한글 메시지 매핑 (ApiResponse 구조 수정됨)
+    function getSyncMessageByCode(code, responseData) {
+        // ApiResponse 구조에 맞게 데이터 추출
+        const resultData = responseData.data || responseData;
+
         switch (code) {
             case 'TURBO_SYNC_DONE':
-                return `✅ 동기화 완료!\n\n총 ${data.totalSaved ?? 0}개의 데이터가 저장되었습니다.`;
+            case 'SUCCESS': // ApiResponse의 기본 성공 코드
+                return `✅ 동기화 완료!\n\n총 ${resultData.totalSaved ?? 0}개의 데이터가 저장되었습니다.`;
+
             case 'TURBO_SYNC_ERROR':
-                return `❌ 동기화 중 오류가 발생했습니다.\n\n상세: ${data.detail || '잠시 후 다시 시도해주세요.'}`;
-            case 'SIMPLE_SYNC_ERROR':
-                return `❌ 간단 동기화 중 오류가 발생했습니다.\n\n상세: ${data.detail || '잠시 후 다시 시도해주세요.'}`;
-            case 'API_ERROR':
-                return `❌ API 호출 중 오류가 발생했습니다.\n\n상세: ${data.detail || '잠시 후 다시 시도해주세요.'}`;
+                return `❌ 동기화 중 오류가 발생했습니다.\n\n상세: ${resultData.detail || responseData.message || '잠시 후 다시 시도해주세요.'}`;
+
+            case 'INTERNAL_SERVER_ERROR': // GlobalExceptionHandler가 뱉는 에러
+                return `❌ 서버 내부 오류가 발생했습니다.\n\n상세: ${responseData.message}`;
+
             default:
-                return '❌ 알 수 없는 응답입니다. 잠시 후 다시 시도해주세요.';
+                return `❌ 알 수 없는 응답입니다. (${code})\n메시지: ${responseData.message || '잠시 후 다시 시도해주세요.'}`;
         }
     }
 
     function syncData() {
-        if (confirm('데이터 동기화를 시작하시겠습니까?\n\n약 10-30초 정도 소요됩니다.')) {
-            // 로딩 표시
+        if (confirm('데이터 동기화를 시작하시겠습니까?\n\n오래 걸릴 경우 "중지" 버튼을 누를 수 있습니다.')) {
+            // --- 로딩 UI 생성 시작 ---
             const loadingDiv = document.createElement('div');
             loadingDiv.id = 'syncLoading';
             loadingDiv.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); display: flex; justify-content: center; align-items: center; z-index: 9999;';
             loadingDiv.innerHTML = `
-                <div style="background: white; padding: 40px; border-radius: 10px; text-align: center;">
+                <div style="background: white; padding: 40px; border-radius: 10px; text-align: center; width: 400px;">
                     <div style="font-size: 50px; margin-bottom: 20px;">🔄</div>
                     <h2>데이터 동기화 중...</h2>
-                    <p style="color: #7f8c8d; margin-top: 10px;">잠시만 기다려주세요</p>
-                    <div style="margin-top: 20px;">
-                        <div style="width: 300px; height: 20px; background: #ecf0f1; border-radius: 10px; overflow: hidden;">
+                    <p style="color: #7f8c8d; margin: 10px 0;">잠시만 기다려주세요</p>
+
+                    <div style="margin: 20px 0;">
+                        <div style="width: 100%; height: 20px; background: #ecf0f1; border-radius: 10px; overflow: hidden;">
                             <div id="progressBar" style="width: 0%; height: 100%; background: linear-gradient(90deg, #3498db, #2ecc71); transition: width 0.3s;"></div>
                         </div>
                         <p id="progressText" style="margin-top: 10px; color: #3498db; font-weight: bold;">0%</p>
                     </div>
+
+                    <button id="stopSyncBtn" onclick="requestStopSync()"
+                        style="background: #e74c3c; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-size: 16px; margin-top: 10px;">
+                        동기화 중지 (저장 후 종료)
+                    </button>
                 </div>
             `;
             document.body.appendChild(loadingDiv);
 
-            // 가짜 진행률 애니메이션
+            // 가짜 진행률 애니메이션 (속도를 조금 늦춰서 중지 버튼을 누를 시간을 벌어줌)
             let progress = 0;
             const progressInterval = setInterval(() => {
                 if (progress < 90) {
-                    progress += Math.random() * 10;
+                    progress += Math.random() * 5;
                     if (progress > 90) progress = 90;
                     const bar = document.getElementById('progressBar');
                     const text = document.getElementById('progressText');
@@ -203,7 +243,9 @@
                     }
                 }
             }, 500);
+            // --- 로딩 UI 생성 끝 ---
 
+            // ★ 핵심 수정 부분: fetch 처리 로직은 기존 유지
             fetch('/api/turbo-sync')
                 .then(res => res.json())
                 .then(data => {
@@ -221,8 +263,12 @@
                             document.body.removeChild(loadingDiv);
                         }
 
-                        // ✅ 백엔드가 내려주는 code를 기준으로 한글 메시지 선택
-                        const code = data.code || (data.success ? 'TURBO_SYNC_DONE' : 'TURBO_SYNC_ERROR');
+                        // [수정됨] ApiResponse 구조 (success, code, data, message) 대응
+                        let code = data.code;
+                        if (!code || code === 'SUCCESS') {
+                            code = data.success ? 'TURBO_SYNC_DONE' : 'TURBO_SYNC_ERROR';
+                        }
+
                         const msg = getSyncMessageByCode(code, data);
                         alert(msg);
                     }, 500);
@@ -232,7 +278,7 @@
                     if (document.getElementById('syncLoading')) {
                         document.body.removeChild(loadingDiv);
                     }
-                    alert('❌ 네트워크 오류가 발생했습니다. 잠시 후 다시 시도해주세요.\n\n상세: ' + err);
+                    alert('❌ 네트워크 오류가 발생했습니다.\n\n상세: ' + err);
                 });
         }
     }

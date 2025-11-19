@@ -3,6 +3,13 @@ CREATE DATABASE IF NOT EXISTS onbid CHARACTER SET utf8mb4 COLLATE utf8mb4_unicod
 
 USE onbid;
 
+SELECT * FROM users;
+SELECT * FROM bids;
+SELECT * FROM kamco_bids;
+SELECT * FROM user_alerts;
+SELECT * FROM notifications;
+SELECT * FROM user_bookmarks;
+
 -- 사용자 테이블
 CREATE TABLE IF NOT EXISTS users (
     user_id BIGINT AUTO_INCREMENT PRIMARY KEY,

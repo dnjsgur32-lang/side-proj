@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>입찰 상세</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f5f5;
+        }
+        .header {
+            background: #2c3e50;
+            color: white;
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .header h1 {
+            font-size: 20px;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 30px auto;
+            padding: 0 20px;
+        }
+        .card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .btn {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px 0;
+        }
+        .btn:hover { background: #2980b9; }
+        .btn-secondary {
+            background: #95a5a6;
+        }
+        .btn-secondary:hover { background: #7f8c8d; }
+        .label { font-weight: bold; color: #555; }
+        .value { margin-bottom: 8px; }
+        input {
+            width: 100%;
+            padding: 10px;
+            margin: 5px 0 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .price { color: #e74c3c; font-weight: bold; }
+        .status { padding: 4px 8px; border-radius: 4px; font-size: 12px; }
+        .status-active { background: #d4edda; color: #155724; }
+        .status-ended { background: #f8d7da; color: #721c24; }
+    </style>
+</head>
+<body>
+<div class="header">
+    <h1>🏛️ 입찰 상세</h1>
+    <button class="btn btn-secondary" onclick="history.back()">← 뒤로가기</button>
+</div>
+
+<div class="container">
+    <div class="card" id="detailCard">
+        <h2 id="bidTitle">공고 상세</h2>
+        <div id="bidContent">불러오는 중...</div>
+    </div>
+
+    <div class="card">
+        <h2>💰 입찰 신청</h2>
+        <form id="bidForm" onsubmit="submitBid(event)">
+            <input type="hidden" id="pblancNo">
+            <input type="hidden" id="pblancNm">
+
+            <div>
+                <label class="label">입찰 금액 (원)</label>
+                <input type="number" id="bidAmount" placeholder="예: 10000000" min="1" required>
+            </div>
+            <div>
+                <label class="label">입찰자 이름 (선택)</label>
+                <input type="text" id="bidderName" placeholder="실제 이름 (옵션)">
+            </div>
+            <div>
+                <label class="label">연락처 (선택)</label>
+                <input type="text" id="phoneNumber" placeholder="예: 010-1234-5678">
+            </div>
+            <div>
+                <label class="label">이메일 (선택)</label>
+                <input type="email" id="email" placeholder="예: user@example.com">
+            </div>
+
+            <button type="submit" class="btn">입찰하기</button>
+        </form>
+    </div>
+</div>
+
+<script>
+    const token = localStorage.getItem('token');
+    const username = localStorage.getItem('username');
+
+    // code → 한글 메시지 매핑
+    function getBidMessageByCode(code, fallbackMessage) {
+        switch (code) {
+            case 'AUTH_REQUIRED': return '🔑 로그인이 필요합니다.';
+            case 'BID_NOT_FOUND': return '❌ 해당 공고를 찾을 수 없습니다.';
+            case 'PBLANC_NO_REQUIRED': return '❌ 공고번호가 누락되었습니다.';
+            case 'BID_AMOUNT_INVALID': return '❌ 입찰 금액은 1원 이상 입력해주세요.';
+            default: return fallbackMessage || '❌ 요청 처리 중 오류가 발생했습니다.';
+        }
+    }
+
+    function formatPriceToManwon(price) {
+        if (!price) return '-';
+        return (price / 10000).toLocaleString() + '만원';
+    }
+
+    // 날짜 / 날짜+시간 처리
+    function formatDateTime(str) {
+        if (!str) return '-';
+        const digits = String(str).replace(/\D/g, '');
+        if (digits.length < 8) return str; // 이상한 형식이면 그대로
+        const y = digits.slice(0, 4);
+        const m = digits.slice(4, 6);
+        const d = digits.slice(6, 8);
+
+        if (digits.length >= 12) {
+            const hh = digits.slice(8, 10);
+            const mm = digits.slice(10, 12);
+            return `${y}-${m}-${d} ${hh}:${mm}`;
+        }
+        return `${y}-${m}-${d}`;
+    }
+
+    function getPbctNoFromQuery() {
+        const params = new URLSearchParams(location.search);
+        return params.get('pbctNo');
+    }
+
+    async function loadBidDetail() {
+        const pbctNo = getPbctNoFromQuery();
+        if (!pbctNo) {
+            alert('잘못된 접근입니다. 공고번호가 없습니다.');
+            location.href = '/bids';
+            return;
+        }
+
+        try {
+            const res = await fetch(`/api/bid-detail?pbctNo=${encodeURIComponent(pbctNo)}`);
+            const body = await res.json().catch(() => null);
+
+            if (!res.ok || !body || body.success === false) {
+                const code = body && body.code ? body.code : 'BID_NOT_FOUND';
+                const msg = getBidMessageByCode(code, body && body.message);
+                document.getElementById('bidContent').innerHTML = `<p>${msg}</p>`;
+                return;
+            }
+
+            const bid = body.data;
+            document.getElementById('bidTitle').textContent = bid.cltrNm || '공고 상세';
+            document.getElementById('pblancNo').value = bid.pbctNo || '';
+            document.getElementById('pblancNm').value = bid.cltrNm || '';
+
+            const today = new Date().toISOString().slice(0,10).replace(/-/g, '');
+            const isActive = bid.pbctEndDt && bid.pbctEndDt >= today;
+
+            const address = [bid.sido, bid.sgk, bid.emd, bid.detailAddress]
+                .filter(Boolean)
+                .join(' ');
+
+            const bannerHtml = isActive
+                ? ''
+                : `
+                <div style="background:#e8f4ff; color:#2c3e50; padding:12px 16px;
+                            border-radius:6px; margin-bottom:16px; font-size:14px;">
+                    이 공고는 이미 마감되었습니다. 상세 정보만 확인할 수 있습니다.
+                </div>
+            `;
+
+            document.getElementById('bidContent').innerHTML = `
+                ${bannerHtml}
+                <div class="value"><span class="label">공고번호:</span> ${bid.pbctNo || '-'}</div>
+                <div class="value"><span class="label">지역:</span> ${address || '-'}</div>
+                <div class="value"><span class="label">최저 입찰가:</span>
+                    <span class="price">${formatPriceToManwon(bid.minBidPrc)}</span></div>
+                <div class="value"><span class="label">감정가:</span>
+                    <span class="price">${formatPriceToManwon(bid.apslAsesAvgAmt)}</span></div>
+                <div class="value"><span class="label">입찰 시작:</span> ${formatDateTime(bid.pbctBgnDt)}</div>
+                <div class="value"><span class="label">입찰 마감:</span> ${formatDateTime(bid.pbctEndDt)}</div>
+                <div class="value">
+                    <span class="label">상태:</span>
+                    <span class="status ${isActive ? 'status-active' : 'status-ended'}">
+                        ${isActive ? '진행중' : '마감'}
+                    </span>
+                </div>
+            `;
+            // ❗ 이제는 마감이어도 폼을 숨기지 않는다 (데모용으로 항상 활성화)
+
+        } catch (e) {
+            document.getElementById('bidContent').innerHTML =
+                '<p>❌ 상세 정보를 불러오는 중 오류가 발생했습니다.</p>';
+        }
+    }
+
+    async function submitBid(event) {
+        event.preventDefault();
+
+        if (!token || !username) {
+            alert('로그인이 필요합니다.');
+            location.href = '/login';
+            return;
+        }
+
+        const pblancNo = document.getElementById('pblancNo').value;
+        const pblancNm = document.getElementById('pblancNm').value;
+        const bidAmount = parseInt(document.getElementById('bidAmount').value, 10);
+        const bidderName = document.getElementById('bidderName').value;
+        const phoneNumber = document.getElementById('phoneNumber').value;
+        const email = document.getElementById('email').value;
+
+        try {
+            const res = await fetch('/api/submit-bid', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + token
+                },
+                body: JSON.stringify({
+                    pblancNo,
+                    pblancNm,
+                    bidAmount,
+                    bidderName,
+                    phoneNumber,
+                    email
+                })
+            });
+
+            const body = await res.json().catch(() => null);
+
+            if (!res.ok || !body || body.success === false) {
+                const code = body && body.code ? body.code : 'BID_SUBMIT_ERROR';
+                const msg = getBidMessageByCode(code, body && body.message);
+                if (res.status === 401 || code === 'AUTH_REQUIRED') {
+                    alert(msg);
+                    location.href = '/login';
+                    return;
+                }
+                alert(msg);
+                return;
+            }
+
+            alert(body.message || '✅ 입찰이 성공적으로 접수되었습니다.');
+            document.getElementById('bidForm').reset();
+
+        } catch (e) {
+            alert('❌ 입찰 처리 중 오류가 발생했습니다.\n\n' + e.message);
+        }
+    }
+
+    loadBidDetail();
+</script>
+</body>
+</html>

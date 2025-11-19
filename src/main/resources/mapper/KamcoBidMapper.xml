@@ -2,8 +2,11 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 
 <mapper namespace="com.ljh.sideproj.mapper.KamcoBidMapper">
-    
-    <resultMap id="KamcoBidResultMap" type="KamcoBid">
+
+    <!-- ===========================
+        공통 ResultMap
+    ============================ -->
+    <resultMap id="KamcoBidResultMap" type="com.ljh.sideproj.dto.KamcoBid">
         <id property="id" column="id"/>
         <result property="pbctNo" column="pbct_no"/>
         <result property="cltrNm" column="cltr_nm"/>
@@ -17,76 +20,125 @@
         <result property="dpslMtdCd" column="dpsl_mtd_cd"/>
         <result property="ctgrHirkId" column="ctgr_hirk_id"/>
         <result property="ctgrHirkIdMid" column="ctgr_hirk_id_mid"/>
-        <result property="goodsPriceFrom" column="goods_price_from"/>
-        <result property="goodsPriceTo" column="goods_price_to"/>
-        <result property="openPriceFrom" column="open_price_from"/>
-        <result property="openPriceTo" column="open_price_to"/>
         <result property="cltrMnmtNo" column="cltr_mnmt_no"/>
+        <result property="saleType" column="sale_type"/>
+        <result property="detailAddress" column="detail_addr"/>
+        <result property="appraisalValue" column="appraisal_value"/>
+        <result property="depositAmount" column="deposit_amt"/>
+        <result property="bidMethod" column="bid_method"/>
+        <result property="areaSize" column="area_size"/>
+        <result property="buildingStructure" column="building_structure"/>
+        <result property="landUse" column="land_use"/>
+        <result property="remarks" column="remarks"/>
         <result property="createdAt" column="created_at"/>
         <result property="updatedAt" column="updated_at"/>
     </resultMap>
-    
-    <insert id="insertOrUpdateKamcoBid" parameterType="KamcoBid">
-        INSERT INTO kamco_bids (pbct_no, cltr_nm, sido, sgk, emd, min_bid_prc, apsl_ases_avg_amt, pbct_bgn_dt, pbct_end_dt, dpsl_mtd_cd, ctgr_hirk_id, ctgr_hirk_id_mid, cltr_mnmt_no)
-        VALUES (#{pbctNo}, #{cltrNm}, #{sido}, #{sgk}, #{emd}, #{minBidPrc}, #{apslAsesAvgAmt}, #{pbctBgnDt}, #{pbctEndDt}, #{dpslMtdCd}, #{ctgrHirkId}, #{ctgrHirkIdMid}, #{cltrMnmtNo})
+
+    <!-- ===========================
+        INSERT OR UPDATE
+    ============================ -->
+    <insert id="insertOrUpdateKamcoBid" parameterType="com.ljh.sideproj.dto.KamcoBid">
+        INSERT INTO kamco_bids (
+            pbct_no, cltr_nm, sido, sgk, emd,
+            min_bid_prc, apsl_ases_avg_amt, pbct_bgn_dt, pbct_end_dt,
+            dpsl_mtd_cd, ctgr_hirk_id, ctgr_hirk_id_mid, cltr_mnmt_no
+        )
+        VALUES (
+                   #{pbctNo}, #{cltrNm}, #{sido}, #{sgk}, #{emd},
+                   #{minBidPrc}, #{apslAsesAvgAmt}, #{pbctBgnDt}, #{pbctEndDt},
+                   #{dpslMtdCd}, #{ctgrHirkId}, #{ctgrHirkIdMid}, #{cltrMnmtNo}
+               )
         ON DUPLICATE KEY UPDATE
-        cltr_nm = VALUES(cltr_nm),
-        sido = VALUES(sido),
-        sgk = VALUES(sgk),
-        emd = VALUES(emd),
-        min_bid_prc = VALUES(min_bid_prc),
-        apsl_ases_avg_amt = VALUES(apsl_ases_avg_amt),
-        pbct_bgn_dt = VALUES(pbct_bgn_dt),
-        pbct_end_dt = VALUES(pbct_end_dt),
-        dpsl_mtd_cd = VALUES(dpsl_mtd_cd),
-        ctgr_hirk_id = VALUES(ctgr_hirk_id),
-        ctgr_hirk_id_mid = VALUES(ctgr_hirk_id_mid),
-        cltr_mnmt_no = VALUES(cltr_mnmt_no),
-        updated_at = NOW()
+                             cltr_nm = VALUES(cltr_nm),
+                             sido    = VALUES(sido),
+                             sgk     = VALUES(sgk),
+                             emd     = VALUES(emd),
+                             min_bid_prc = VALUES(min_bid_prc),
+                             apsl_ases_avg_amt = VALUES(apsl_ases_avg_amt),
+                             pbct_bgn_dt = VALUES(pbct_bgn_dt),
+                             pbct_end_dt = VALUES(pbct_end_dt),
+                             dpsl_mtd_cd = VALUES(dpsl_mtd_cd),
+                             ctgr_hirk_id = VALUES(ctgr_hirk_id),
+                             ctgr_hirk_id_mid = VALUES(ctgr_hirk_id_mid),
+                             cltr_mnmt_no = VALUES(cltr_mnmt_no),
+                             updated_at = NOW()
     </insert>
-    
+
+    <!-- ===========================
+        목록 조회 (param 기반)
+        param1=sido
+        param2=sgk
+        param3=emd
+        param4=cltrNm
+        param5=dpslMtdCd
+        param6=offset
+        param7=numOfRows
+    ============================ -->
     <select id="findWithFilters" resultMap="KamcoBidResultMap">
-        SELECT * FROM kamco_bids
-        <where>
-            <if test="sido != null and sido != ''">
-                AND sido = #{sido}
-            </if>
-            <if test="sgk != null and sgk != ''">
-                AND sgk LIKE CONCAT('%', #{sgk}, '%')
-            </if>
-            <if test="emd != null and emd != ''">
-                AND emd LIKE CONCAT('%', #{emd}, '%')
-            </if>
-            <if test="cltrNm != null and cltrNm != ''">
-                AND cltr_nm LIKE CONCAT('%', #{cltrNm}, '%')
-            </if>
-            <if test="dpslMtdCd != null and dpslMtdCd != ''">
-                AND dpsl_mtd_cd = #{dpslMtdCd}
-            </if>
-        </where>
+        SELECT *
+        FROM kamco_bids
+        WHERE 1=1
+        <if test="param1 != null and param1 != ''">
+            AND sido = #{param1}
+        </if>
+        <if test="param2 != null and param2 != ''">
+            AND sgk LIKE CONCAT('%', #{param2}, '%')
+        </if>
+        <if test="param3 != null and param3 != ''">
+            AND emd LIKE CONCAT('%', #{param3}, '%')
+        </if>
+        <if test="param4 != null and param4 != ''">
+            AND cltr_nm LIKE CONCAT('%', #{param4}, '%')
+        </if>
+        <if test="param5 != null and param5 != ''">
+            AND dpsl_mtd_cd = #{param5}
+        </if>
         ORDER BY created_at DESC
-        LIMIT #{limit} OFFSET #{offset}
+        LIMIT #{param7} OFFSET #{param6}
     </select>
-    
+
+    <!-- ===========================
+        카운트 (param 기반)
+    ============================ -->
     <select id="countWithFilters" resultType="int">
-        SELECT COUNT(*) FROM kamco_bids
-        <where>
-            <if test="sido != null and sido != ''">
-                AND sido = #{sido}
-            </if>
-            <if test="sgk != null and sgk != ''">
-                AND sgk LIKE CONCAT('%', #{sgk}, '%')
-            </if>
-            <if test="emd != null and emd != ''">
-                AND emd LIKE CONCAT('%', #{emd}, '%')
-            </if>
-            <if test="cltrNm != null and cltrNm != ''">
-                AND cltr_nm LIKE CONCAT('%', #{cltrNm}, '%')
-            </if>
-            <if test="dpslMtdCd != null and dpslMtdCd != ''">
-                AND dpsl_mtd_cd = #{dpslMtdCd}
-            </if>
-        </where>
+        SELECT COUNT(*)
+        FROM kamco_bids
+        WHERE 1=1
+        <if test="param1 != null and param1 != ''">
+            AND sido = #{param1}
+        </if>
+        <if test="param2 != null and param2 != ''">
+            AND sgk LIKE CONCAT('%', #{param2}, '%')
+        </if>
+        <if test="param3 != null and param3 != ''">
+            AND emd LIKE CONCAT('%', #{param3}, '%')
+        </if>
+        <if test="param4 != null and param4 != ''">
+            AND cltr_nm LIKE CONCAT('%', #{param4}, '%')
+        </if>
+        <if test="param5 != null and param5 != ''">
+            AND dpsl_mtd_cd = #{param5}
+        </if>
     </select>
-    
+
+    <!-- 전체 카운트 -->
+    <select id="countAll" resultType="long">
+        SELECT COUNT(*) FROM kamco_bids
+    </select>
+
+    <!-- 마지막 동기화 시각 -->
+    <select id="findLastSyncTime" resultType="java.time.LocalDateTime">
+        SELECT MAX(created_at) FROM kamco_bids
+    </select>
+
+    <!-- 단일 조회 -->
+    <select id="findByPbctNo"
+            parameterType="string"
+            resultMap="KamcoBidResultMap">
+        SELECT *
+        FROM kamco_bids
+        WHERE pbct_no = #{pbctNo}
+        LIMIT 1
+    </select>
+
 </mapper>

@@ -1,18 +1,66 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
 
 <mapper namespace="com.ljh.sideproj.mapper.BidMapper">
-    
-    <insert id="insertBid" parameterType="Bid">
-        INSERT INTO bids (user_id, pblnc_no, pblnc_nm, bid_amount, bid_date)
-        VALUES (#{userId}, #{pblncNo}, #{pblncNm}, #{bidAmount}, NOW())
+
+    <!-- 공통 컬럼 매핑 -->
+    <resultMap id="BidResultMap" type="com.ljh.sideproj.dto.Bid">
+        <id     property="bidId"    column="bid_id"/>
+        <result property="userId"   column="user_id"/>
+        <result property="pblncNo"  column="pblnc_no"/>
+        <result property="pblncNm"  column="pblnc_nm"/>
+        <result property="bidAmount" column="bid_amount"/>
+        <result property="bidDate"   column="bid_date"/>
+    </resultMap>
+
+    <!-- INSERT -->
+    <insert id="insertBid" parameterType="com.ljh.sideproj.dto.Bid" useGeneratedKeys="true" keyProperty="bidId">
+        INSERT INTO bids
+        (
+        user_id,
+        pblnc_no,
+        pblnc_nm,
+        bid_amount,
+        bid_date
+        )
+        VALUES
+        (
+        #{userId},
+        #{pblncNo},
+        #{pblncNm},
+        #{bidAmount},
+        NOW()
+        )
     </insert>
-    
-    <select id="findByUserId" parameterType="Long" resultType="Bid">
-        SELECT bid_id, user_id, pblnc_no, pblnc_nm, bid_amount, bid_date
+
+    <!-- 내 입찰 내역 -->
+    <select id="findByUserId" parameterType="long" resultMap="BidResultMap">
+        SELECT
+        bid_id,
+        user_id,
+        pblnc_no,
+        pblnc_nm,
+        bid_amount,
+        bid_date
         FROM bids
         WHERE user_id = #{userId}
         ORDER BY bid_date DESC
     </select>
-    
+
+    <!-- 공고번호 기준 입찰 내역 -->
+    <select id="findByPblncNo" parameterType="string" resultMap="BidResultMap">
+        SELECT
+        bid_id,
+        user_id,
+        pblnc_no,
+        pblnc_nm,
+        bid_amount,
+        bid_date
+        FROM bids
+        WHERE pblnc_no = #{pblncNo}
+        ORDER BY bid_date DESC
+    </select>
+
 </mapper>
